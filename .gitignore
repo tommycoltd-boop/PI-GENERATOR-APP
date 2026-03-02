@@ -1,0 +1,36 @@
+# OpenClaw workspace files
+.openclaw/
+memory/
+HEARTBEAT.md
+HEARTBEAT.md.backup
+MEMORY.md
+
+# Local configuration files
+AGENTS.md
+SOUL.md
+TOOLS.md
+USER.md
+IDENTITY.md
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backup files
+*.backup
+*.bak
+*.old
+*.tmp
+
+# Sensitive data
+*.key
+*.pem
+*.cert
+*.env
+secrets.*
+config.local.*

@@ -1,0 +1,1746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Contract Generator (Gemini)</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background: #f5f5f7; color: #333; }
+        h1 { color: #1a1a1a; }
+        .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #e0e0e0; }
+        .card h2 { margin-top: 0; color: #2c2c2c; }
+        .row { display: flex; gap: 20px; margin-bottom: 20px; }
+        .col { flex: 1; }
+        label { display: block; margin-bottom: 6px; font-weight: 500; color: #555; }
+        input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; }
+        textarea { font-family: monospace; min-height: 120px; }
+        button { background: #007aff; color: white; border: none; padding: 12px 20px; border-radius: 8px; font-size: 15px; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #0056cc; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #545b62; }
+        .status { background: #e7f3ff; border: 1px solid #b8d4ff; color: #0066cc; padding: 12px; border-radius: 8px; margin: 12px 0; display: none; }
+        .contract-preview { background: white; border: 1px solid #ddd; padding: 24px; border-radius: 8px; }
+        .template-switch { display: flex; gap: 12px; margin-bottom: 20px; }
+        .template-btn { flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; text-align: center; font-weight: 500; }
+        .template-btn.active { border-color: #007aff; background: #e7f3ff; color: #007aff; }
+        .local-storage-note { font-size: 13px; color: #666; margin-top: 8px; }
+        .api-selector { margin-bottom: 16px; }
+        .api-selector label { margin-bottom: 8px; }
+        .paste-notice { background: #f0f7ff; border: 1px solid #c2e0ff; padding: 8px 12px; border-radius: 6px; font-size: 13px; color: #0066cc; margin-top: 8px; display: none; }
+        .product-row { margin-bottom: 12px; padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef; }
+        .product-row:last-child { margin-bottom: 0; }
+        .remove-product-btn { background: #dc3545; color: white; border: none; border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 14px; }
+        .remove-product-btn:hover { background: #c82333; }
+        .products-section label { font-size: 14px; }
+        
+        /* PDF导出样式 */
+        #contract-capture.pdf-export {
+            width: 210mm; /* A4宽度 */
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 15mm;
+            box-sizing: border-box;
+            background: white;
+            box-shadow: none;
+            border: 1px solid #eee;
+            font-family: Arial, sans-serif;
+            line-height: 1.4;
+        }
+        #contract-capture.pdf-export table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10pt;
+            page-break-inside: auto;
+            margin-bottom: 10mm;
+        }
+        #contract-capture.pdf-export thead {
+            display: table-header-group;
+        }
+        #contract-capture.pdf-export tfoot {
+            display: table-footer-group;
+        }
+        #contract-capture.pdf-export th,
+        #contract-capture.pdf-export td {
+            padding: 5px 8px;
+            border: 1px solid #333;
+            text-align: left;
+            page-break-inside: avoid;
+            page-break-after: auto;
+        }
+        #contract-capture.pdf-export th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+        }
+        #contract-capture.pdf-export tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+        }
+        #contract-capture.pdf-export h1 {
+            font-size: 22pt;
+            margin-bottom: 8mm;
+            text-align: center;
+            page-break-before: always;
+            page-break-after: avoid;
+        }
+        #contract-capture.pdf-export h3 {
+            font-size: 12pt;
+            margin-top: 6mm;
+            margin-bottom: 3mm;
+            page-break-after: avoid;
+        }
+        /* 分页控制 */
+        .page-break {
+            page-break-before: always;
+        }
+        .keep-together {
+            page-break-inside: avoid;
+        }
+        .avoid-break-inside {
+            page-break-inside: avoid;
+        }
+        /* 表格行保持在一起 */
+        .table-protected tr {
+            page-break-inside: avoid !important;
+        }
+        /* 重复表头表尾 */
+        .repeat-header {
+            display: table-header-group;
+        }
+        .repeat-footer {
+            display: table-footer-group;
+        }
+        /* 页眉页脚间距 */
+        #contract-capture.pdf-export > div:first-child {
+            margin-top: 0;
+        }
+        #contract-capture.pdf-export > div:last-child {
+            margin-bottom: 0;
+            page-break-before: avoid;
+        }
+        
+        /* 打印模式样式 */
+        body.print-mode #contract-capture.print-export {
+            width: 210mm;
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 15mm;
+            box-sizing: border-box;
+            background: white;
+            box-shadow: none;
+            border: 1px solid #eee;
+            font-family: Arial, sans-serif;
+            line-height: 1.4;
+        }
+        /* 横向打印样式 */
+        body.print-mode #contract-capture.print-export.landscape {
+            width: 297mm;
+            max-width: 297mm;
+        }
+        body.print-mode #contract-capture.print-export table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10pt;
+            page-break-inside: auto;
+            margin-bottom: 10mm;
+        }
+        body.print-mode #contract-capture.print-export th,
+        body.print-mode #contract-capture.print-export td {
+            padding: 5px 8px;
+            border: 1px solid #333;
+            text-align: left;
+        }
+        body.print-mode #contract-capture.print-export th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+        }
+        body.print-mode #contract-capture.print-export h1 {
+            font-size: 22pt;
+            margin-bottom: 8mm;
+            text-align: center;
+        }
+        body.print-mode #contract-capture.print-export h3 {
+            font-size: 12pt;
+            margin-top: 6mm;
+            margin-bottom: 3mm;
+        }
+        /* 隐藏不需要的元素 */
+        body.print-mode #contract-capture.print-export input,
+        body.print-mode #contract-capture.print-export button,
+        body.print-mode #contract-capture.print-export textarea,
+        body.print-mode #contract-capture.print-export select {
+            display: none !important;
+        }
+        
+        /* 打印样式 - 只显示预览内容 */
+        @media print {
+            /* 当body有print-mode类时，显示打印内容 */
+            body.print-mode #contract-capture {
+                display: block !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 20mm !important;
+                background: white !important;
+                border: none !important;
+                box-shadow: none !important;
+                position: relative !important;
+                left: 0 !important;
+                top: 0 !important;
+            }
+            
+            /* 隐藏所有非合同元素 */
+            body.print-mode > *:not(#contract-capture) {
+                display: none !important;
+            }
+            
+            /* 表格样式 */
+            #contract-capture table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                margin-bottom: 20px !important;
+            }
+            
+            #contract-capture th,
+            #contract-capture td {
+                padding: 8px 10px !important;
+                border: 1px solid #333 !important;
+                text-align: left !important;
+            }
+            
+            #contract-capture th {
+                background-color: #f5f5f5 !important;
+                font-weight: bold !important;
+            }
+            
+            /* 标题居中 */
+            #contract-capture h1 {
+                text-align: center !important;
+                font-size: 24pt !important;
+                margin: 20px 0 30px 0 !important;
+            }
+            
+            /* 隐藏不需要打印的元素 */
+            #contract-capture input,
+            #contract-capture button,
+            #contract-capture textarea,
+            #contract-capture select,
+            #contract-capture .no-print {
+                display: none !important;
+            }
+            
+            /* 页面设置 */
+            @page {
+                margin: 0 !important;
+                size: A4 portrait !important;
+            }
+            
+            /* 横向打印设置 */
+            @page landscape {
+                size: A4 landscape !important;
+            }
+            
+            body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+            }
+        }
+        
+        /* 确保合同标题中的空格正确显示 */
+        #contract-title, #display-title {
+            word-spacing: 0.2em !important;
+            white-space: normal !important;
+            letter-spacing: normal !important;
+        }
+        
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px !important;
+                max-width: 100% !important;
+            }
+            
+            .row {
+                flex-direction: column !important;
+                gap: 16px !important;
+            }
+            
+            .col {
+                width: 100% !important;
+            }
+            
+            .card {
+                padding: 16px !important;
+                margin-bottom: 16px !important;
+            }
+            
+            h1 {
+                font-size: 1.5rem !important;
+            }
+            
+            .card h2 {
+                font-size: 1.2rem !important;
+            }
+            
+            .product-row > div[style*="display: flex"] {
+                flex-direction: column !important;
+                gap: 12px !important;
+            }
+            
+            .product-row > div[style*="display: flex"] > div {
+                flex: 1 1 100% !important;
+                width: 100% !important;
+                margin-bottom: 8px !important;
+            }
+            
+            .product-row > div[style*="display: flex"] > div:last-child {
+                margin-bottom: 0 !important;
+                display: flex;
+                justify-content: flex-end;
+            }
+            
+            .template-switch {
+                flex-direction: column !important;
+            }
+            
+            .template-btn {
+                margin-bottom: 8px !important;
+            }
+            
+            .contract-preview {
+                padding: 12px !important;
+                overflow-x: auto !important;
+            }
+            
+            #contract-capture table {
+                font-size: 12px !important;
+            }
+            
+            #contract-capture th,
+            #contract-capture td {
+                padding: 6px 8px !important;
+            }
+            
+            #contract-capture h1 {
+                font-size: 1.3rem !important;
+                margin: 10px 0 15px 0 !important;
+            }
+            
+            /* 卖家/买家信息容器适配 */
+            #contract-capture > div[style*="display: flex"] {
+                flex-direction: column !important;
+                gap: 20px !important;
+            }
+            
+            #contract-capture > div[style*="display: flex"] > div {
+                flex: 1 1 100% !important;
+                width: 100% !important;
+                padding: 0 !important;
+                border-left: none !important;
+                border-top: 1px solid #eee !important;
+            }
+            
+            #contract-capture > div[style*="display: flex"] > div:first-child {
+                border-top: none !important;
+            }
+            
+            /* 按钮组适配 */
+            div[style*="display: flex"] {
+                flex-direction: column !important;
+            }
+            
+            div[style*="display: flex"] button {
+                width: 100% !important;
+                margin-bottom: 8px !important;
+            }
+            
+            div[style*="display: flex"] button:last-child {
+                margin-bottom: 0 !important;
+            }
+            
+            /* 产品表格适配 */
+            table {
+                display: block !important;
+                overflow-x: auto !important;
+                white-space: nowrap !important;
+            }
+            
+            /* 输入框和文本区域 */
+            input, select, textarea {
+                font-size: 16px !important; /* 防止iOS自动缩放 */
+            }
+            
+            textarea {
+                min-height: 100px !important;
+            }
+            
+            /* 隐藏不需要的元素 */
+            .local-storage-note {
+                font-size: 11px !important;
+            }
+            
+            /* 页脚信息适配 */
+            #contract-capture > div:last-child {
+                margin-top: 20px !important;
+                padding-top: 15px !important;
+            }
+            
+            /* 手动粘贴模态框适配 */
+            div[style*="background: rgba(0,0,0,0.5)"] > div {
+                width: 95% !important;
+                max-width: 95% !important;
+                padding: 16px !important;
+            }
+            
+            div[style*="background: rgba(0,0,0,0.5)"] h3 {
+                font-size: 1.2rem !important;
+            }
+            
+            div[style*="background: rgba(0,0,0,0.5)"] p,
+            div[style*="background: rgba(0,0,0,0.5)"] ol {
+                font-size: 14px !important;
+            }
+            
+            #manualPasteArea {
+                min-height: 100px !important;
+                font-size: 16px !important;
+            }
+        }
+        
+        /* 超小屏幕适配 */
+        @media (max-width: 375px) {
+            body {
+                padding: 8px !important;
+            }
+            
+            .card {
+                padding: 12px !important;
+            }
+            
+            h1 {
+                font-size: 1.3rem !important;
+            }
+            
+            .card h2 {
+                font-size: 1.1rem !important;
+            }
+            
+            #contract-capture table {
+                font-size: 11px !important;
+            }
+            
+            #contract-capture th,
+            #contract-capture td {
+                padding: 4px 6px !important;
+            }
+            
+            #contract-capture h1 {
+                font-size: 1.1rem !important;
+                margin: 8px 0 12px 0 !important;
+            }
+            
+            button {
+                padding: 10px 16px !important;
+                font-size: 14px !important;
+            }
+            
+            input, select, textarea {
+                padding: 8px 10px !important;
+                font-size: 15px !important;
+            }
+            
+            /* 超小屏幕手动粘贴模态框适配 */
+            div[style*="background: rgba(0,0,0,0.5)"] > div {
+                padding: 12px !important;
+            }
+            
+            div[style*="background: rgba(0,0,0,0.5)"] h3 {
+                font-size: 1.1rem !important;
+                margin-bottom: 10px !important;
+            }
+            
+            div[style*="background: rgba(0,0,0,0.5)"] p,
+            div[style*="background: rgba(0,0,0,0.5)"] ol {
+                font-size: 13px !important;
+                margin-bottom: 10px !important;
+            }
+            
+            #manualPasteArea {
+                min-height: 80px !important;
+            }
+            
+            div[style*="background: rgba(0,0,0,0.5)"] button {
+                padding: 10px !important;
+                font-size: 14px !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="api-key-warning" style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; color: #856404;">
+        <strong>⚠️ API Keys Required:</strong> Before using, please set your API keys in the JavaScript code (lines 688-689). 
+        <a href="javascript:void(0)" onclick="showApiKeyHelp()" style="color: #0056cc; text-decoration: underline; margin-left: 8px;">How to get API keys?</a>
+        <div id="api-key-help" style="display: none; margin-top: 10px; padding: 10px; background: white; border-radius: 6px; border: 1px solid #ddd;">
+            <p><strong>Gemini API:</strong> Visit <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a> to get a free API key.</p>
+            <p><strong>DeepSeek API:</strong> Visit <a href="https://platform.deepseek.com/api_keys" target="_blank">DeepSeek Platform</a> to get an API key.</p>
+            <p>After obtaining keys, open this page's source code and replace <code>YOUR_GEMINI_API_KEY_HERE</code> and <code>YOUR_DEEPSEEK_API_KEY_HERE</code> with your actual keys.</p>
+            <button onclick="hideApiKeyHelp()" style="background: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 4px; margin-top: 8px;">Close</button>
+        </div>
+    </div>
+    
+    <h1>🤖 Smart Contract Generator (Gemini Flash)</h1>
+    
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <h2>1. Paste Chat Message (Auto-detect)</h2>
+                <div class="api-selector">
+                    <label>AI Provider</label>
+                    <select id="aiProvider">
+                        <option value="gemini">Gemini Flash Latest (Free)</option>
+                        <option value="deepseek">DeepSeek (Fast)</option>
+                    </select>
+                </div>
+                <div class="api-selector" style="margin-top: 12px;">
+                    <label>Parsing Mode</label>
+                    <select id="parseMode">
+                        <option value="single">Single Parse (单次解析)</option>
+                        <option value="accumulate">Multi-Screenshot Accumulate (多图累加)</option>
+                    </select>
+                </div>
+                <textarea id="rawInput" placeholder="Paste your WhatsApp/WeChat message here...
+
+For Multi-Screenshot Mode:
+Paste text from multiple screenshots sequentially, they will be accumulated automatically.
+
+Example (Chinese):
+买家：BADHON ELECTRICALS LTD.
+地址：KOLCHAR MOKK...
+产品：LED灯，数量：1000个，单价：5美元
+付款：30%定金，70%发货前
+交期：15天
+
+Example (English):
+Buyer: BADHON ELECTRICALS LTD.
+Address: KOLCHAR MOKK...
+Product: LED Lights, Qty: 1000 pcs, Price: $5 each
+Payment: 30% deposit, 70% before shipment
+Lead time: 15 days"></textarea>
+                <div id="pasteNotice" class="paste-notice">Paste detected! Parsing automatically...</div>
+                <div style="display: flex; gap: 10px; margin-top: 12px;">
+                    <button id="btnParse" onclick="runAI()" style="flex: 2;">🧠 Parse with AI</button>
+                    <button class="btn-secondary" onclick="pasteFromClipboard()" style="flex: 1;">📋 Paste</button>
+                    <button class="btn-secondary" onclick="clearInput()" style="flex: 1;">🗑️ Clear</button>
+                </div>
+                <div id="status" class="status">Processing with AI...</div>
+            </div>
+            
+            <div class="card">
+                <h2>2. Seller Info (Auto‑saved)</h2>
+                <label>Seller Company</label>
+                <input id="seller_company" class="local-store" placeholder="Your company name">
+                <label>Seller Address</label>
+                <input id="seller_address" class="local-store" placeholder="Your address">
+                <label>Seller Tel/Fax</label>
+                <input id="seller_contact" class="local-store" placeholder="Tel/Fax">
+                <button onclick="saveToLocal()" class="btn-secondary">💾 Save Seller Info</button>
+                <p class="local-storage-note">Seller info is automatically loaded on page load.</p>
+            </div>
+            
+            <div class="card">
+                <h2>3. Buyer Info (Auto‑saved)</h2>
+                <label>Buyer Company</label>
+                <input id="buyer_company" class="local-store" placeholder="Buyer company name">
+                <label>Buyer Address</label>
+                <input id="buyer_address" class="local-store" placeholder="Buyer address">
+                <label>Buyer Tel/Fax</label>
+                <input id="buyer_contact" class="local-store" placeholder="Buyer contact">
+                <button onclick="saveToLocal()" class="btn-secondary">💾 Save Buyer Info</button>
+                <p class="local-storage-note">Buyer info is automatically loaded on page load.</p>
+            </div>
+        </div>
+        
+        <div class="col">
+            <div class="card">
+                <h2>3. Contract Details</h2>
+                <div class="template-switch">
+                    <div class="template-btn active" onclick="switchTemplate('SC')">SALES CONTRACT</div>
+                    <div class="template-btn" onclick="switchTemplate('PI')">PROFORMA INVOICE</div>
+                </div>
+                
+                <label>Contract/Invoice No</label>
+                <input id="contract_no" value="PI-2026-001">
+                
+                <div class="products-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <label style="margin-bottom: 0;">Products</label>
+                        <button type="button" class="btn-secondary" onclick="addProductRow()" style="padding: 6px 12px; font-size: 14px;">+ Add Product</button>
+                    </div>
+                    
+                    <div id="products-container">
+                        <!-- Product rows will be generated here -->
+                        <div class="product-row" data-index="0">
+                            <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                                <div style="flex: 3;">
+                                    <label style="font-size: 13px;">Description</label>
+                                    <input type="text" class="product-desc" placeholder="LED Lights" data-field="description">
+                                </div>
+                                <div style="flex: 1;">
+                                    <label style="font-size: 13px;">Quantity</label>
+                                    <input type="text" class="product-qty" placeholder="1000 pcs" data-field="qty">
+                                </div>
+                                <div style="flex: 1;">
+                                    <label style="font-size: 13px;">Unit Price</label>
+                                    <input type="text" class="product-price" placeholder="USD 5.00" data-field="price">
+                                </div>
+                                <div style="flex: 0.5; display: flex; align-items: flex-end;">
+                                    <button type="button" class="btn-secondary" onclick="removeProductRow(this)" style="padding: 6px 10px; font-size: 14px; background: #dc3545; color: white; border: none;" title="Remove">×</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group" style="margin-top: 20px;">
+                    <label>Shipping Fee</label>
+                    <input type="text" id="f_shipping" placeholder="e.g. USD 100.00" style="width: 100%;" oninput="updatePreview()">
+                </div>
+                
+                <label>Payment Terms</label>
+                <input id="f_terms" placeholder="30% deposit, 70% before shipment">
+                
+                <label>Lead Time</label>
+                <input id="f_leadtime" placeholder="15 days">
+            </div>
+            
+            <div class="card">
+                <h2>4. Generate</h2>
+                <div style="margin-bottom: 12px;">
+                    <label>Page Orientation</label>
+                    <select id="pageOrientation" style="width: 100%; margin-bottom: 12px;">
+                        <option value="portrait">Portrait (纵向)</option>
+                        <option value="landscape">Landscape (横向)</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <button onclick="generateImage()" style="width: 100%;">🖼️ Generate Contract Image</button>
+                </div>
+                <button onclick="printContract()" style="width: 100%;">🖨️ Print / Save as PDF</button>
+                <p style="font-size: 13px; color: #666; margin-top: 8px;">PNG image or browser print.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2 id="display-title">SALES CONTRACT</h2>
+        <div id="contract-capture" class="contract-preview">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <h1 style="margin-bottom: 4px;" id="contract-title">SALES CONTRACT</h1>
+                <p style="color: #666;">No. <span id="preview-contract-no">PI-2026-001</span> &nbsp; Date: <span id="preview-date">2026-03-02</span></p>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
+                <div style="flex: 1; padding-right: 20px;">
+                    <h3 style="margin-top: 0;">SELLER:</h3>
+                    <p><strong id="preview-seller-company">[Your Company]</strong><br>
+                    <span id="preview-seller-address">[Your Address]</span><br>
+                    Tel/Fax: <span id="preview-seller-contact">[Your Contact]</span></p>
+                </div>
+                <div style="flex: 1; padding-left: 20px; border-left: 1px solid #eee;">
+                    <h3 style="margin-top: 0;">BUYER:</h3>
+                    <p><strong id="preview-buyer-company">[Buyer Company]</strong><br>
+                    <span id="preview-buyer-address">[Buyer Address]</span><br>
+                    Tel/Fax: <span id="preview-buyer-contact">[Buyer Contact]</span></p>
+                </div>
+            </div>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                    <tr style="background: #f2f2f2;">
+                        <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Product Description</th>
+                        <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Quantity</th>
+                        <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Unit Price</th>
+                        <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody id="preview-products-body">
+                    <!-- Product rows will be generated here -->
+                    <tr>
+                        <td style="padding: 12px; border: 1px solid #ddd;">LED Lights</td>
+                        <td style="padding: 12px; border: 1px solid #ddd;">1000 pcs</td>
+                        <td style="padding: 12px; border: 1px solid #ddd;">USD 5.00</td>
+                        <td style="padding: 12px; border: 1px solid #ddd;">USD 5,000.00</td>
+                    </tr>
+                </tbody>
+                <tfoot id="preview-totals-footer">
+                    <!-- Shipping and total rows will be generated here -->
+                </tfoot>
+            </table>
+            
+            <div style="margin-top: 24px;">
+                <p><strong>Payment Terms:</strong> <span id="preview-terms">30% deposit, 70% before shipment</span></p>
+                <p><strong>Lead Time:</strong> <span id="preview-leadtime">15 days</span></p>
+                <p><strong>Shipment:</strong> FOB Shanghai</p>
+                <p><strong>Destination:</strong> Chittagong, Bangladesh</p>
+            </div>
+            
+            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; text-align: right;">
+                <p>For and on behalf of</p>
+                <p><strong>[Your Company]</strong></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Key help functions
+        function showApiKeyHelp() {
+            document.getElementById('api-key-help').style.display = 'block';
+        }
+        
+        function hideApiKeyHelp() {
+            document.getElementById('api-key-help').style.display = 'none';
+        }
+        
+        // API Keys (Fill in your own)
+        // 🔒 IMPORTANT: Replace with your own API keys before using
+        // Get Gemini API key: https://makersuite.google.com/app/apikey
+        // Get DeepSeek API key: https://platform.deepseek.com/api_keys
+        const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE"; // Replace with your Gemini API Key
+        const DEEPSEEK_API_KEY = "YOUR_DEEPSEEK_API_KEY_HERE"; // Replace with your DeepSeek API Key
+        
+        // 用于存储上一次抓取的内容，防止重复累加
+        let lastGrabbedText = "";
+        
+        // 显示临时提示
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.textContent = msg;
+            toast.style.cssText = 'position:fixed; top:20px; right:20px; background:#007aff; color:white; padding:8px 16px; border-radius:8px; z-index:9999; font-size:14px; box-shadow:0 4px 12px rgba(0,0,0,0.15);';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }
+        
+        // 本地存储：自动加载上次保存的卖家信息
+        window.onload = () => {
+            const savedData = JSON.parse(localStorage.getItem('contract_seller_info') || '{}');
+            Object.keys(savedData).forEach(id => {
+                if(document.getElementById(id)) document.getElementById(id).value = savedData[id];
+                updatePreview();
+            });
+            // Set today's date
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('preview-date').textContent = today;
+            
+            // Setup paste auto-detect
+            setupPasteDetection();
+            
+            // 添加窗口聚焦自动抓取剪贴板功能
+            window.addEventListener('focus', async () => {
+                try {
+                    // 读取剪贴板内容
+                    const currentClipboardText = await navigator.clipboard.readText();
+                    
+                    // 特殊处理：如果刚刚清空了输入框（lastGrabbedText === "CLEARED"）
+                    if (lastGrabbedText === "CLEARED") {
+                        // 将当前剪贴板内容记录为"已处理"，但不添加到输入框
+                        lastGrabbedText = currentClipboardText || "";
+                        showToast(`🔄 已重置记录，准备接收新内容`);
+                        return; // 不添加任何内容
+                    }
+                    
+                    // 逻辑判断：如果内容不为空、不是刚才抓过的、且长度大于2（过滤掉无意义点击）
+                    // 并且检查是否已经存在于输入框中（增强去重逻辑）
+                    const inputArea = document.getElementById('rawInput');
+                    const alreadyExists = inputArea.value.includes(currentClipboardText);
+                    
+                    if (currentClipboardText && currentClipboardText !== lastGrabbedText && currentClipboardText.length > 2 && !alreadyExists) {
+                        
+                        // 执行"累加"逻辑：在旧内容后面追加新内容，并用分割线区分
+                        const separator = inputArea.value ? "\n===\n" : "";
+                        inputArea.value += separator + currentClipboardText;
+                        
+                        // 更新记录，防止循环抓取
+                        lastGrabbedText = currentClipboardText;
+                        
+                        // 显示提示
+                        showToast(`📋 已添加: ${currentClipboardText.substring(0, 30)}...`);
+                        
+                        // 如果内容较长，自动触发AI解析（仅在single模式下）
+                        // 已禁用自动解析，请手动点击"Parse with AI"按钮
+                    } else if (alreadyExists) {
+                        // 如果已经存在，显示提示但不添加
+                        showToast(`⏭️ 内容已存在，跳过添加`);
+                    }
+                } catch (err) {
+                    // 如果用户还没授权粘贴权限，控制台会记录
+                    console.warn("无法自动抓取剪贴板，请确保已授予粘贴权限。");
+                }
+            });
+        };
+        
+        // 手动粘贴剪贴板内容 - iOS/Android兼容版本
+        async function pasteFromClipboard() {
+            const inputArea = document.getElementById('rawInput');
+            
+            // 方法1: 尝试标准Clipboard API (现代浏览器)
+            if (navigator.clipboard && navigator.clipboard.readText) {
+                try {
+                    const text = await navigator.clipboard.readText();
+                    return handlePastedText(text, inputArea);
+                } catch (err) {
+                    console.warn("Clipboard API失败:", err);
+                    // 继续尝试方法2
+                }
+            }
+            
+            // 方法2: 尝试旧版execCommand (某些浏览器可能支持)
+            try {
+                // 创建一个临时输入框来接收粘贴
+                const tempInput = document.createElement('textarea');
+                tempInput.style.position = 'fixed';
+                tempInput.style.top = '-1000px';
+                tempInput.style.left = '-1000px';
+                document.body.appendChild(tempInput);
+                tempInput.focus();
+                
+                // 尝试粘贴
+                const success = document.execCommand('paste');
+                
+                if (success) {
+                    const text = tempInput.value;
+                    document.body.removeChild(tempInput);
+                    return handlePastedText(text, inputArea);
+                }
+                
+                document.body.removeChild(tempInput);
+            } catch (err) {
+                console.warn("execCommand失败:", err);
+            }
+            
+            // 方法3: 所有方法都失败，显示手动输入框
+            showManualPasteDialog(inputArea);
+        }
+        
+        // 处理粘贴的文本
+        function handlePastedText(text, inputArea) {
+            if (!text || text.trim().length === 0) {
+                alert("剪贴板为空或没有文本内容");
+                return false;
+            }
+            
+            const alreadyExists = inputArea.value.includes(text);
+            
+            if (alreadyExists) {
+                alert("内容已存在，跳过添加");
+                return false;
+            }
+            
+            // 添加分割线（如果已有内容）
+            const separator = inputArea.value ? "\n===\n" : "";
+            inputArea.value += separator + text;
+            
+            // 更新记录
+            lastGrabbedText = text;
+            
+            // 显示成功提示
+            showToast(`✅ 已粘贴: ${text.substring(0, 30)}...`);
+            
+            // 自动滚动到底部
+            inputArea.scrollTop = inputArea.scrollHeight;
+            
+            return true;
+        }
+        
+        // 显示手动粘贴对话框
+        function showManualPasteDialog(inputArea) {
+            // 创建模态框
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            `;
+            
+            const dialog = document.createElement('div');
+            dialog.style.cssText = `
+                background: white;
+                border-radius: 12px;
+                padding: 20px;
+                width: 90%;
+                max-width: 500px;
+                max-height: 80vh;
+                display: flex;
+                flex-direction: column;
+            `;
+            
+            dialog.innerHTML = `
+                <h3 style="margin-top: 0; color: #333;">📋 手动粘贴</h3>
+                <p style="color: #666; margin-bottom: 15px;">
+                    由于浏览器限制，无法直接读取剪贴板。<br>
+                    请按以下步骤操作：
+                </p>
+                <ol style="color: #666; margin-bottom: 20px; padding-left: 20px;">
+                    <li>长按下方输入框</li>
+                    <li>选择"粘贴"</li>
+                    <li>点击"确定"按钮</li>
+                </ol>
+                <textarea id="manualPasteArea" 
+                    style="width: 100%; min-height: 120px; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px;"
+                    placeholder="请长按这里选择粘贴..."></textarea>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button onclick="handleManualPasteSubmit()" 
+                        style="flex: 1; background: #007aff; color: white; border: none; padding: 12px; border-radius: 8px;">
+                        确定
+                    </button>
+                    <button onclick="document.body.removeChild(this.closest('div[style*=\"background: rgba\"]'))" 
+                        style="flex: 1; background: #6c757d; color: white; border: none; padding: 12px; border-radius: 8px;">
+                        取消
+                    </button>
+                </div>
+            `;
+            
+            modal.appendChild(dialog);
+            document.body.appendChild(modal);
+            
+            // 聚焦到文本区域
+            setTimeout(() => {
+                const textarea = document.getElementById('manualPasteArea');
+                if (textarea) textarea.focus();
+            }, 100);
+            
+            // 添加全局函数来处理提交
+            window.handleManualPasteSubmit = function() {
+                const manualText = document.getElementById('manualPasteArea').value.trim();
+                if (manualText) {
+                    handlePastedText(manualText, inputArea);
+                }
+                if (modal.parentNode) {
+                    document.body.removeChild(modal);
+                }
+                delete window.handleManualPasteSubmit;
+            };
+        }
+        
+        function clearInput() {
+            document.getElementById('rawInput').value = "";
+            // 设置为特殊值，表示刚刚清空
+            lastGrabbedText = "CLEARED";
+            
+            // 清空产品栏，恢复为一行空行
+            setProductsData([]);
+            
+            // 清空其他临时字段
+            document.getElementById('f_shipping').value = "";
+            document.getElementById('f_terms').value = "";
+            document.getElementById('f_leadtime').value = "";
+            
+            // 更新预览
+            updatePreview();
+            
+            alert("Text cleared. Ready for new order.");
+        }
+        
+        function setupPasteDetection() {
+            const textarea = document.getElementById('rawInput');
+            const notice = document.getElementById('pasteNotice');
+            
+            textarea.addEventListener('paste', function(e) {
+                const mode = document.getElementById('parseMode').value;
+                
+                // Show notice
+                notice.style.display = 'block';
+                
+                // For accumulate mode: wait for paste to complete, then add separator
+                if (mode === 'accumulate') {
+                    setTimeout(() => {
+                        const currentVal = textarea.value;
+                        // Add separator if there's existing content and doesn't already end with separator
+                        if (currentVal && !currentVal.endsWith('\n===\n')) {
+                            textarea.value += '\n===\n';
+                        }
+                    }, 100);
+                }
+                
+                // Wait a moment for paste to complete
+                setTimeout(() => {
+                    const text = textarea.value.trim();
+                    const mode = document.getElementById('parseMode').value;
+                    
+                    // Only auto-parse in single mode (not accumulate mode)
+                    // Removed auto-parse to let user click manually
+                    // if (mode === 'single' && text && text.length > 10) {
+                    //     setTimeout(() => runAI(), 300);
+                    // }
+                }, 100);
+                
+                // Hide notice after 3 seconds
+                setTimeout(() => {
+                    notice.style.display = 'none';
+                }, 3000);
+            });
+        }
+        
+        function saveToLocal() {
+            const data = {};
+            document.querySelectorAll('.local-store').forEach(el => {
+                data[el.id] = el.value;
+            });
+            localStorage.setItem('contract_seller_info', JSON.stringify(data));
+            updatePreview();
+            alert("✅ Seller info saved!");
+        }
+        
+        function switchTemplate(type) {
+            // Update button states
+            document.querySelectorAll('.template-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update title
+            const title = type === 'SC' ? 'SALES CONTRACT' : 'PROFORMA INVOICE';
+            document.getElementById('display-title').innerText = title;
+            document.getElementById('contract-title').innerText = title;
+        }
+        
+        // 更新预览
+        // Product management functions
+        function addProductRow(product = { description: '', qty: '', price: '' }) {
+            const container = document.getElementById('products-container');
+            const index = container.children.length;
+            
+            const row = document.createElement('div');
+            row.className = 'product-row';
+            row.setAttribute('data-index', index);
+            row.innerHTML = `
+                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                    <div style="flex: 3;">
+                        <label style="font-size: 13px;">Description</label>
+                        <input type="text" class="product-desc" placeholder="LED Lights" data-field="description" value="${product.description || ''}">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 13px;">Quantity</label>
+                        <input type="text" class="product-qty" placeholder="1000 pcs" data-field="qty" value="${product.qty || ''}">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 13px;">Unit Price</label>
+                        <input type="text" class="product-price" placeholder="USD 5.00" data-field="price" value="${product.price || ''}">
+                    </div>
+                    <div style="flex: 0.5; display: flex; align-items: flex-end;">
+                        <button type="button" class="btn-secondary" onclick="removeProductRow(this)" style="padding: 6px 10px; font-size: 14px; background: #dc3545; color: white; border: none;" title="Remove">×</button>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(row);
+            
+            // Add event listeners to new inputs
+            row.querySelectorAll('input').forEach(input => {
+                input.addEventListener('input', updatePreview);
+            });
+            
+            updatePreview();
+            return row;
+        }
+        
+        function removeProductRow(button) {
+            const row = button.closest('.product-row');
+            if (row && document.querySelectorAll('.product-row').length > 1) {
+                row.remove();
+                updatePreview();
+            } else {
+                alert("At least one product row is required.");
+            }
+        }
+        
+        function getProductsData() {
+            const products = [];
+            const rows = document.querySelectorAll('.product-row');
+            
+            rows.forEach(row => {
+                const desc = row.querySelector('.product-desc')?.value || '';
+                const qty = row.querySelector('.product-qty')?.value || '';
+                const price = row.querySelector('.product-price')?.value || '';
+                
+                if (desc.trim() || qty.trim() || price.trim()) {
+                    products.push({
+                        description: desc,
+                        qty: qty,
+                        price: price
+                    });
+                }
+            });
+            
+            return products;
+        }
+        
+        function setProductsData(products) {
+            const container = document.getElementById('products-container');
+            
+            // Clear existing rows except the first one
+            const existingRows = container.querySelectorAll('.product-row');
+            for (let i = 1; i < existingRows.length; i++) {
+                existingRows[i].remove();
+            }
+            
+            // Update first row (clear it if products array is empty)
+            if (existingRows.length > 0) {
+                const firstRow = existingRows[0];
+                if (products.length > 0) {
+                    firstRow.querySelector('.product-desc').value = products[0].description || '';
+                    firstRow.querySelector('.product-qty').value = products[0].qty || '';
+                    firstRow.querySelector('.product-price').value = products[0].price || '';
+                } else {
+                    // Clear the first row
+                    firstRow.querySelector('.product-desc').value = '';
+                    firstRow.querySelector('.product-qty').value = '';
+                    firstRow.querySelector('.product-price').value = '';
+                }
+            }
+            
+            // Add additional rows for remaining products
+            for (let i = 1; i < products.length; i++) {
+                addProductRow(products[i]);
+            }
+            
+            updatePreview();
+        }
+        
+        function updatePreview() {
+            // Update seller info
+            document.getElementById('preview-seller-company').textContent = 
+                document.getElementById('seller_company').value || '[Your Company]';
+            document.getElementById('preview-seller-address').textContent = 
+                document.getElementById('seller_address').value || '[Your Address]';
+            document.getElementById('preview-seller-contact').textContent = 
+                document.getElementById('seller_contact').value || '[Your Contact]';
+            
+            // Update buyer info
+            document.getElementById('preview-buyer-company').textContent = 
+                document.getElementById('buyer_company').value || '[Buyer Company]';
+            document.getElementById('preview-buyer-address').textContent = 
+                document.getElementById('buyer_address').value || '[Buyer Address]';
+            document.getElementById('preview-buyer-contact').textContent = 
+                document.getElementById('buyer_contact').value || '[Buyer Contact]';
+            
+            document.getElementById('preview-contract-no').textContent = 
+                document.getElementById('contract_no').value;
+            
+            // Update terms
+            document.getElementById('preview-terms').textContent = 
+                document.getElementById('f_terms').value || '30% deposit, 70% before shipment';
+            document.getElementById('preview-leadtime').textContent = 
+                document.getElementById('f_leadtime').value || '15 days';
+            
+            // Update products table
+            const products = getProductsData();
+            const tbody = document.getElementById('preview-products-body');
+            let totalAmount = 0;
+            
+            // Clear existing rows
+            tbody.innerHTML = '';
+            
+            // Add product rows
+            products.forEach(product => {
+                const tr = document.createElement('tr');
+                
+                // Calculate amount if possible
+                let amount = '';
+                const qtyMatch = product.qty.match(/(\d+(?:\.\d+)?)/);
+                const priceMatch = product.price.match(/(\d+(?:\.\d+)?)/);
+                if (qtyMatch && priceMatch) {
+                    const qty = parseFloat(qtyMatch[1]);
+                    const price = parseFloat(priceMatch[1]);
+                    const productAmount = qty * price;
+                    totalAmount += productAmount;
+                    amount = 'USD ' + productAmount.toLocaleString('en-US', {minimumFractionDigits: 2});
+                }
+                
+                tr.innerHTML = `
+                    <td style="padding: 12px; border: 1px solid #ddd;">${product.description || ''}</td>
+                    <td style="padding: 12px; border: 1px solid #ddd;">${product.qty || ''}</td>
+                    <td style="padding: 12px; border: 1px solid #ddd;">${product.price || ''}</td>
+                    <td style="padding: 12px; border: 1px solid #ddd;">${amount}</td>
+                `;
+                
+                tbody.appendChild(tr);
+            });
+            
+            // If no products, add a default row
+            if (products.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td style="padding: 12px; border: 1px solid #ddd;">LED Lights</td>
+                        <td style="padding: 12px; border: 1px solid #ddd;">1000 pcs</td>
+                        <td style="padding: 12px; border: 1px solid #ddd;">USD 5.00</td>
+                        <td style="padding: 12px; border: 1px solid #ddd;">USD 5,000.00</td>
+                    </tr>
+                `;
+                totalAmount = 5000;
+            }
+            
+            // Calculate shipping fee
+            let shippingAmount = 0;
+            const shippingText = document.getElementById('f_shipping')?.value || '';
+            const shippingMatch = shippingText.match(/(\d+(?:\.\d+)?)/);
+            if (shippingMatch) {
+                shippingAmount = parseFloat(shippingMatch[1]);
+            }
+            
+            // Update totals footer with shipping and grand total
+            const tfoot = document.getElementById('preview-totals-footer');
+            const grandTotal = totalAmount + shippingAmount;
+            
+            // Format currency (simple detection)
+            let currency = 'USD';
+            if (shippingText.includes('USD') || shippingText.includes('$')) {
+                currency = 'USD';
+            } else if (shippingText.includes('CNY') || shippingText.includes('¥')) {
+                currency = 'CNY';
+            } else if (shippingText.includes('EUR') || shippingText.includes('€')) {
+                currency = 'EUR';
+            }
+            
+            tfoot.innerHTML = `
+                <tr style="background: #f8f9fa;">
+                    <td colspan="3" style="padding: 12px; border: 1px solid #ddd; text-align: right; font-weight: bold;">Subtotal:</td>
+                    <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">${currency} ${totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                </tr>
+                <tr style="background: #f8f9fa;">
+                    <td colspan="3" style="padding: 12px; border: 1px solid #ddd; text-align: right; font-weight: bold;">Shipping Fee:</td>
+                    <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">${shippingText || currency + ' 0.00'}</td>
+                </tr>
+                <tr style="background: #e9ecef; font-weight: bold;">
+                    <td colspan="3" style="padding: 12px; border: 1px solid #ddd; text-align: right;">TOTAL:</td>
+                    <td style="padding: 12px; border: 1px solid #ddd;">${currency} ${grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                </tr>
+            `;
+        }
+        
+        // 监听输入变化
+        document.querySelectorAll('input, textarea').forEach(el => {
+            el.addEventListener('input', updatePreview);
+        });
+        
+        // 核心功能：调用 AI API 进行解析（双语智能补全 + 多图累加）
+        async function runAI() {
+            const text = document.getElementById('rawInput').value;
+            if (!text) return alert("Please paste some text");
+            
+            const provider = document.getElementById('aiProvider').value;
+            const mode = document.getElementById('parseMode').value;
+            const btn = document.getElementById('btnParse');
+            const status = document.getElementById('status');
+            btn.disabled = true;
+            status.style.display = "block";
+            
+            try {
+                let result;
+                if (provider === 'gemini') {
+                    result = await callGeminiAPI(text, mode);
+                } else {
+                    result = await callDeepSeekAPI(text, mode);
+                }
+                
+                // 自动填充 - 支持多产品
+                const products = [];
+                
+                // 旧格式兼容：单个产品
+                if (result.product) {
+                    products.push({
+                        description: result.product || "",
+                        qty: result.qty || "",
+                        price: result.price || ""
+                    });
+                }
+                
+                // 新格式：多产品数组
+                if (result.products && Array.isArray(result.products)) {
+                    result.products.forEach(p => {
+                        products.push({
+                            description: p.description || p.product || "",
+                            qty: p.qty || "",
+                            price: p.price || ""
+                        });
+                    });
+                }
+                
+                // 如果从多产品数组中解析出内容，清除旧格式的单个产品
+                if (result.products && result.products.length > 0) {
+                    result.product = "";
+                    result.qty = "";
+                    result.price = "";
+                }
+                
+                // 设置产品数据
+                setProductsData(products);
+                
+                // 填充其他字段
+                document.getElementById('f_shipping').value = result.shipping || "";
+                document.getElementById('f_terms').value = result.terms || "";
+                document.getElementById('f_leadtime').value = result.leadtime || "";
+                document.getElementById('buyer_company').value = result.buyer_company || "";
+                document.getElementById('buyer_address').value = result.buyer_address || "";
+                document.getElementById('buyer_contact').value = result.buyer_contact || "";
+                
+                updatePreview();
+                alert(`✅ ${provider === 'gemini' ? 'Gemini' : 'DeepSeek'} parsing completed! (Mode: ${mode}) - Found ${products.length} product(s)`);
+                
+            } catch (e) {
+                console.error(e);
+                alert(`Parsing failed: ${e.message}\n\nPlease check: 1. API Key is correct; 2. Sufficient balance/quota; 3. Network connectivity.`);
+            } finally {
+                btn.disabled = false;
+                status.style.display = "none";
+            }
+        }
+        
+        async function callGeminiAPI(text, mode = 'single') {
+            if (!GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_GEMINI_API_KEY") {
+                throw new Error("Please fill in your Gemini API Key. Get it from: https://makersuite.google.com/app/apikey");
+            }
+            
+            let prompt;
+            if (mode === 'accumulate') {
+                prompt = `You are a professional contract data integration expert. The user provides multiple scattered chat records (possibly from multiple screenshot OCRs). Please ignore irrelevant chatter, extract and integrate the most complete contract elements:
+
+FORMAT INSTRUCTIONS:
+1. If there are multiple products, return an array in "products" field with each product having: description, qty, price
+2. If only one product, return single fields: product, qty, price
+3. shipping (shipping fee with currency, e.g. "USD 100.00")
+4. terms (payment terms in English)
+5. leadtime (delivery lead time)
+6. buyer_company (buyer company name)
+7. buyer_address (buyer address)
+8. buyer_contact (buyer telephone/fax)
+
+If the input contains Chinese, translate key information to English.
+Return ONLY pure JSON format, no markdown code blocks, no explanations.
+
+Examples:
+Single product: {"product": "LED Lights", "qty": "1000 pcs", "price": "USD 5.00", "shipping": "USD 100.00", "terms": "30% deposit, 70% before shipment", "leadtime": "15 days", "buyer_company": "BADHON ELECTRICALS LTD.", "buyer_address": "KOLCHAR MOKK, CHITTAGONG", "buyer_contact": "+880 1234 567890"}
+Multiple products: {"products": [{"description": "LED Lights", "qty": "1000 pcs", "price": "USD 5.00"}, {"description": "Solar Panels", "qty": "500 pcs", "price": "USD 25.00"}], "shipping": "USD 150.00", "terms": "30% deposit, 70% before shipment", "leadtime": "15 days", "buyer_company": "BADHON ELECTRICALS LTD.", "buyer_address": "KOLCHAR MOKK, CHITTAGONG", "buyer_contact": "+880 1234 567890"}
+
+Integrated text from multiple sources: ${text.substring(0, 2000)}`;
+            } else {
+                prompt = `You are a trade document assistant. Extract contract elements from the conversation.
+                
+                IMPORTANT INSTRUCTIONS:
+                1. If the input is in Chinese, translate key information to English
+                2. Extract these fields (all in English):
+                   - If there are multiple products, return an array in "products" field with each product having: description, qty, price
+                   - If only one product, return single fields: product, qty, price
+                   - shipping (shipping fee with currency, e.g. "USD 100.00")
+                   - terms (payment terms in English)
+                   - leadtime (delivery lead time)
+                   - buyer_company (buyer company name)
+                   - buyer_address (buyer address)
+                   - buyer_contact (buyer telephone/fax)
+                3. Return ONLY pure JSON format, no markdown code blocks, no explanations
+                
+                Examples:
+                Single product: {"product": "LED Lights", "qty": "1000 pcs", "price": "USD 5.00", "shipping": "USD 100.00", "terms": "30% deposit, 70% before shipment", "leadtime": "15 days", "buyer_company": "BADHON ELECTRICALS LTD.", "buyer_address": "KOLCHAR MOKK, CHITTAGONG", "buyer_contact": "+880 1234 567890"}
+                Multiple products: {"products": [{"description": "LED Lights", "qty": "1000 pcs", "price": "USD 5.00"}, {"description": "Solar Panels", "qty": "500 pcs", "price": "USD 25.00"}], "shipping": "USD 150.00", "terms": "30% deposit, 70% before shipment", "leadtime": "15 days", "buyer_company": "BADHON ELECTRICALS LTD.", "buyer_address": "KOLCHAR MOKK, CHITTAGONG", "buyer_contact": "+880 1234 567890"}
+                
+                Input text: ${text.substring(0, 2000)}`;
+            }
+            
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{ text: prompt }]
+                    }],
+                    generationConfig: {
+                        temperature: 0.1
+                    }
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Gemini API error: HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log("Gemini response:", data);
+            
+            if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0]) {
+                throw new Error("Invalid response format from Gemini");
+            }
+            
+            const resultText = data.candidates[0].content.parts[0].text;
+            // Clean JSON (remove markdown code blocks)
+            const cleanedText = resultText.replace(/```json|```/g, "").trim();
+            
+            try {
+                return JSON.parse(cleanedText);
+            } catch (e) {
+                // Try to extract JSON if parse fails
+                const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    return JSON.parse(jsonMatch[0]);
+                }
+                throw new Error("Failed to parse JSON from Gemini response");
+            }
+        }
+        
+        async function callDeepSeekAPI(text, mode = 'single') {
+            let prompt;
+            if (mode === 'accumulate') {
+                prompt = `You are a professional contract data integration expert. The user provides multiple scattered chat records (possibly from multiple screenshot OCRs). Please ignore irrelevant chatter, extract and integrate the most complete contract elements:
+
+FORMAT INSTRUCTIONS:
+1. If there are multiple products, return an array in "products" field with each product having: description, qty, price
+2. If only one product, return single fields: product, qty, price
+3. shipping (shipping fee with currency, e.g. "USD 100.00")
+4. terms (payment terms in English)
+5. leadtime (delivery lead time)
+6. buyer_company (buyer company name)
+7. buyer_address (buyer address)
+8. buyer_contact (buyer telephone/fax)
+
+If the input contains Chinese, translate key information to English.
+Return ONLY pure JSON format, no markdown code blocks.
+
+Examples:
+Single product: {"product": "LED Lights", "qty": "1000 pcs", "price": "USD 5.00", "shipping": "USD 100.00", "terms": "30% deposit, 70% before shipment", "leadtime": "15 days", "buyer_company": "BADHON ELECTRICALS LTD.", "buyer_address": "KOLCHAR MOKK, CHITTAGONG", "buyer_contact": "+880 1234 567890"}
+Multiple products: {"products": [{"description": "LED Lights", "qty": "1000 pcs", "price": "USD 5.00"}, {"description": "Solar Panels", "qty": "500 pcs", "price": "USD 25.00"}], "shipping": "USD 150.00", "terms": "30% deposit, 70% before shipment", "leadtime": "15 days", "buyer_company": "BADHON ELECTRICALS LTD.", "buyer_address": "KOLCHAR MOKK, CHITTAGONG", "buyer_contact": "+880 1234 567890"}`;
+            } else {
+                prompt = `You are a trade assistant. Extract contract elements from the conversation.
+                
+                IMPORTANT INSTRUCTIONS:
+                1. If the input is in Chinese, translate key information to English
+                2. Extract these fields (all in English):
+                   - If there are multiple products, return an array in "products" field with each product having: description, qty, price
+                   - If only one product, return single fields: product, qty, price
+                   - shipping (shipping fee with currency, e.g. "USD 100.00")
+                   - terms (payment terms in English)
+                   - leadtime (delivery lead time)
+                   - buyer_company (buyer company name)
+                   - buyer_address (buyer address)
+                   - buyer_contact (buyer telephone/fax)
+                3. Return ONLY pure JSON format, no markdown code blocks
+                
+                Examples:
+                Single product: {"product": "LED Lights", "qty": "1000 pcs", "price": "USD 5.00", "shipping": "USD 100.00", "terms": "30% deposit, 70% before shipment", "leadtime": "15 days", "buyer_company": "BADHON ELECTRICALS LTD.", "buyer_address": "KOLCHAR MOKK, CHITTAGONG", "buyer_contact": "+880 1234 567890"}
+                Multiple products: {"products": [{"description": "LED Lights", "qty": "1000 pcs", "price": "USD 5.00"}, {"description": "Solar Panels", "qty": "500 pcs", "price": "USD 25.00"}], "shipping": "USD 150.00", "terms": "30% deposit, 70% before shipment", "leadtime": "15 days", "buyer_company": "BADHON ELECTRICALS LTD.", "buyer_address": "KOLCHAR MOKK, CHITTAGONG", "buyer_contact": "+880 1234 567890"}`;
+            }
+            
+            const response = await fetch("https://api.deepseek.com/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
+                },
+                body: JSON.stringify({
+                    model: "deepseek-chat",
+                    messages: [
+                        { role: "system", content: prompt },
+                        { role: "user", content: text }
+                    ],
+                    stream: false,
+                    response_format: { "type": "json_object" }
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`DeepSeek API error: HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log("DeepSeek response:", data);
+            
+            if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
+                throw new Error("Invalid response format from DeepSeek");
+            }
+            
+            return JSON.parse(data.choices[0].message.content);
+        }
+        
+        // 生成合同长图
+        function generateImage() {
+            const area = document.getElementById('contract-capture');
+            html2canvas(area, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff'
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `Contract_${new Date().getTime()}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+            });
+        }
+        
+        // 生成可打印PDF
+        function generatePDF() {
+            const element = document.getElementById('contract-capture');
+            const contractNo = document.getElementById('preview-contract-no').textContent || 'Contract';
+            const fileName = `Contract_${contractNo.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().getTime()}.pdf`;
+            
+            // 获取页面方向
+            const orientation = document.getElementById('pageOrientation').value;
+            const isLandscape = orientation === 'landscape';
+            
+            // 根据方向设置尺寸
+            const pageWidth = isLandscape ? 1123 : 794; // A4横向: 297mm ≈ 1123px, 纵向: 210mm ≈ 794px
+            const pageHeight = isLandscape ? 794 : 1123; // A4横向: 210mm ≈ 794px, 纵向: 297mm ≈ 1123px
+            
+            // 临时添加打印样式类
+            const originalClasses = element.className;
+            element.className = originalClasses + ' pdf-export';
+            
+            // 保存原始样式
+            const originalWidth = element.style.width;
+            const originalMaxWidth = element.style.maxWidth;
+            const originalMargin = element.style.margin;
+            const originalPadding = element.style.padding;
+            const originalBoxSizing = element.style.boxSizing;
+            
+            // 应用PDF导出样式
+            element.style.width = isLandscape ? '297mm' : '210mm';
+            element.style.maxWidth = isLandscape ? '297mm' : '210mm';
+            element.style.margin = '0 auto';
+            element.style.padding = '15mm';
+            element.style.boxSizing = 'border-box';
+            
+            // 临时隐藏不需要打印的UI元素
+            const originalDisplay = [];
+            const hiddenElements = element.querySelectorAll('input, button, .no-print');
+            hiddenElements.forEach(el => {
+                originalDisplay.push(el.style.display);
+                el.style.display = 'none';
+            });
+            
+            // 为表格添加分页保护类和重复表头
+            const tables = element.querySelectorAll('table');
+            tables.forEach(table => {
+                table.classList.add('table-protected');
+                // 确保表头有正确的scope
+                const thead = table.querySelector('thead');
+                if (thead) {
+                    thead.classList.add('repeat-header');
+                }
+                // 确保表尾
+                const tfoot = table.querySelector('tfoot');
+                if (tfoot) {
+                    tfoot.classList.add('repeat-footer');
+                }
+                // 为每一行添加避免断开类
+                const rows = table.querySelectorAll('tr');
+                rows.forEach(row => {
+                    row.classList.add('avoid-break-inside');
+                });
+            });
+            
+            // PDF选项 - A4尺寸，适合打印
+            const options = {
+                margin: [15, 15, 15, 15], // 合理的页边距
+                filename: fileName,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { 
+                    scale: 1.5, // 降低缩放比例以提高稳定性和性能
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    scrollY: 0,
+                    windowWidth: pageWidth, // 根据方向设置宽度
+                    windowHeight: pageHeight, // 使用固定高度保持正确宽高比，html2pdf会自动分页
+                    logging: false,
+                    allowTaint: true,
+                    useCORS: true,
+                    foreignObjectRendering: false,
+                    letterRendering: true,
+                    removeContainer: true
+                },
+                jsPDF: { 
+                    unit: 'mm', 
+                    format: 'a4', 
+                    orientation: orientation, // 使用选择的方向
+                    compress: true,
+                    hotfixes: ['px_scaling'],
+                    putOnlyUsedFonts: true
+                },
+                pagebreak: { 
+                    mode: ['avoid-all', 'css', 'legacy'],
+                    avoid: ['.table-protected', '.table-protected tr', '.table-protected td', '.table-protected th'],
+                    before: '.pagebreak-before',
+                    after: '.pagebreak-after',
+                    avoidBreak: '.avoid-break-inside'
+                }
+            };
+            
+            // 生成PDF
+            html2pdf().set(options).from(element).save().then(() => {
+                // 恢复原始样式
+                element.style.width = originalWidth;
+                element.style.maxWidth = originalMaxWidth;
+                element.style.margin = originalMargin;
+                element.style.padding = originalPadding;
+                element.style.boxSizing = originalBoxSizing;
+                element.className = originalClasses;
+                
+                // 恢复隐藏的元素
+                hiddenElements.forEach((el, index) => {
+                    el.style.display = originalDisplay[index];
+                });
+                
+                // 移除表格保护类和重复类
+                tables.forEach(table => {
+                    table.classList.remove('table-protected');
+                    const thead = table.querySelector('thead');
+                    if (thead) {
+                        thead.classList.remove('repeat-header');
+                    }
+                    const tfoot = table.querySelector('tfoot');
+                    if (tfoot) {
+                        tfoot.classList.remove('repeat-footer');
+                    }
+                    const rows = table.querySelectorAll('tr');
+                    rows.forEach(row => {
+                        row.classList.remove('avoid-break-inside');
+                    });
+                });
+            }).catch(err => {
+                console.error('PDF生成失败:', err);
+                alert('PDF生成失败，请重试或使用打印功能。');
+                
+                // 恢复原始样式
+                element.style.width = originalWidth;
+                element.style.maxWidth = originalMaxWidth;
+                element.style.margin = originalMargin;
+                element.style.padding = originalPadding;
+                element.style.boxSizing = originalBoxSizing;
+                element.className = originalClasses;
+                
+                // 恢复隐藏的元素
+                hiddenElements.forEach((el, index) => {
+                    el.style.display = originalDisplay[index];
+                });
+                
+                // 移除表格保护类和重复类
+                tables.forEach(table => {
+                    table.classList.remove('table-protected');
+                    const thead = table.querySelector('thead');
+                    if (thead) {
+                        thead.classList.remove('repeat-header');
+                    }
+                    const tfoot = table.querySelector('tfoot');
+                    if (tfoot) {
+                        tfoot.classList.remove('repeat-footer');
+                    }
+                    const rows = table.querySelectorAll('tr');
+                    rows.forEach(row => {
+                        row.classList.remove('avoid-break-inside');
+                    });
+                });
+            });
+        }
+        
+        // 打印合同（只显示合同内容）
+        function printContract() {
+            // 保存原始页面标题
+            const originalTitle = document.title;
+            // 设置临时页面标题为合同标题，避免浏览器打印页眉显示无关信息
+            const contractTitle = document.getElementById('contract-title').textContent || 'Contract';
+            document.title = contractTitle;
+            
+            // 获取页面方向
+            const orientation = document.getElementById('pageOrientation').value;
+            const isLandscape = orientation === 'landscape';
+            
+            // 获取合同元素
+            const contractElement = document.getElementById('contract-capture');
+            
+            // 保存原始位置和父元素
+            const originalParent = contractElement.parentNode;
+            const originalNextSibling = contractElement.nextSibling;
+            
+            // 保存原始样式
+            const originalStyle = {
+                display: contractElement.style.display,
+                width: contractElement.style.width,
+                maxWidth: contractElement.style.maxWidth,
+                margin: contractElement.style.margin,
+                padding: contractElement.style.padding,
+                boxSizing: contractElement.style.boxSizing
+            };
+            
+            // 隐藏不需要打印的元素
+            const hiddenElements = contractElement.querySelectorAll('input, button, .no-print');
+            const originalDisplay = [];
+            hiddenElements.forEach(el => {
+                originalDisplay.push(el.style.display);
+                el.style.display = 'none';
+            });
+            
+            // 临时将合同元素移动到body的直接子元素，以便打印
+            document.body.appendChild(contractElement);
+            
+            // 应用打印样式
+            contractElement.style.display = 'block';
+            contractElement.style.width = '100%';
+            contractElement.style.maxWidth = 'none';
+            contractElement.style.margin = '0';
+            contractElement.style.padding = '20mm';
+            contractElement.style.boxSizing = 'border-box';
+            contractElement.style.background = 'white';
+            
+            // 为body添加打印模式类
+            document.body.classList.add('print-mode');
+            if (isLandscape) {
+                contractElement.classList.add('landscape');
+            }
+            
+            // 为合同元素添加打印类
+            contractElement.classList.add('print-export');
+            
+            // 触发打印
+            setTimeout(() => {
+                window.print();
+                
+                // 打印后恢复
+                setTimeout(() => {
+                    // 恢复页面标题
+                    document.title = originalTitle;
+                    
+                    // 移除打印类
+                    document.body.classList.remove('print-mode');
+                    contractElement.classList.remove('print-export', 'landscape');
+                    
+                    // 恢复原始样式
+                    contractElement.style.display = originalStyle.display;
+                    contractElement.style.width = originalStyle.width;
+                    contractElement.style.maxWidth = originalStyle.maxWidth;
+                    contractElement.style.margin = originalStyle.margin;
+                    contractElement.style.padding = originalStyle.padding;
+                    contractElement.style.boxSizing = originalStyle.boxSizing;
+                    contractElement.style.background = '';
+                    
+                    // 恢复隐藏的元素
+                    hiddenElements.forEach((el, index) => {
+                        el.style.display = originalDisplay[index];
+                    });
+                    
+                    // 将合同元素移回原始位置
+                    if (originalNextSibling) {
+                        originalParent.insertBefore(contractElement, originalNextSibling);
+                    } else {
+                        originalParent.appendChild(contractElement);
+                    }
+                }, 100);
+            }, 100);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Contract Editor</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background: #f5f5f7; color: #333; }
+        h1 { color: #1a1a1a; margin-bottom: 24px; }
+        h2 { margin-top: 0; color: #2c2c2c; }
+        
+        .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #e0e0e0; }
+        
+        .section { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 6px; font-weight: 500; color: #555; }
+        input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; margin-bottom: 12px; }
+        textarea { font-family: monospace; min-height: 120px; }
+        
+        button { background: #007aff; color: white; border: none; padding: 12px 20px; border-radius: 8px; font-size: 15px; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #0056cc; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #545b62; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        
+        .status { background: #e7f3ff; border: 1px solid #b8d4ff; color: #0066cc; padding: 12px; border-radius: 8px; margin: 12px 0; display: none; }
+        
+        /* Table styles for inline editing */
+        .items-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .items-table th, .items-table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        .items-table th { background: #f2f2f2; font-weight: 600; }
+        .items-table input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; margin: 0; }
+        .items-table .remove-btn { color: #dc3545; background: none; border: none; font-size: 18px; cursor: pointer; padding: 0 8px; }
+        
+        .form-row { display: flex; gap: 12px; margin-bottom: 16px; }
+        .form-row > div { flex: 1; }
+        
+        .paste-notice { background: #f0f7ff; border: 1px solid #c2e0ff; padding: 8px 12px; border-radius: 6px; font-size: 13px; color: #0066cc; margin-top: 8px; display: none; }
+        
+        .contract-preview { background: white; border: 1px solid #ddd; padding: 24px; border-radius: 8px; margin-top: 20px; }
+        .preview-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .preview-table th, .preview-table td { border: 1px solid #ddd; padding: 12px; }
+        .preview-table th { background: #f2f2f2; }
+        .preview-table tfoot tr { background: #f8f9fa; font-weight: bold; }
+        
+        .controls { display: flex; gap: 12px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>📄 Simple Contract Editor</h1>
+    
+    <div class="card">
+        <h2>1. Seller Info</h2>
+        <div class="form-row">
+            <div>
+                <label>Seller Company</label>
+                <input id="seller_company" placeholder="Your company name" class="local-store">
+            </div>
+            <div>
+                <label>Seller Tel/Fax</label>
+                <input id="seller_contact" placeholder="Tel/Fax" class="local-store">
+            </div>
+        </div>
+        <div>
+            <label>Seller Address</label>
+            <input id="seller_address" placeholder="Your address" class="local-store">
+        </div>
+        <button onclick="saveSellerInfo()" class="btn-secondary">💾 Save Seller Info</button>
+        <p style="font-size: 13px; color: #666; margin-top: 8px;">Seller info is automatically loaded on page load.</p>
+    </div>
+    
+    <div class="card">
+        <h2>2. Contract Details</h2>
+        <div class="form-row">
+            <div>
+                <label>Contract/Invoice No</label>
+                <input id="contract_no" value="PI-2026-001">
+            </div>
+            <div>
+                <label>Template</label>
+                <select id="template-type" onchange="switchTemplate()">
+                    <option value="SC">SALES CONTRACT</option>
+                    <option value="PI">PROFORMA INVOICE</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>3. Products (Edit directly in table)</h2>
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>Product Description</th>
+                    <th width="120">Quantity</th>
+                    <th width="120">Unit Price</th>
+                    <th width="60">Action</th>
+                </tr>
+            </thead>
+            <tbody id="items-body">
+                <!-- Items will be added here -->
+            </tbody>
+        </table>
+        <button onclick="addItemRow()" class="btn-secondary">+ Add Product</button>
+        <button onclick="clearAllItems()" class="btn-danger" style="margin-left: 12px;">🗑️ Clear All</button>
+    </div>
+    
+    <div class="card">
+        <h2>4. Shipping & Terms</h2>
+        <div class="form-row">
+            <div>
+                <label>Shipping Fee</label>
+                <input id="f_shipping" placeholder="e.g. USD 100.00" oninput="updatePreview()">
+            </div>
+            <div>
+                <label>Lead Time</label>
+                <input id="f_leadtime" placeholder="e.g. 15 days" oninput="updatePreview()">
+            </div>
+        </div>
+        <div>
+            <label>Payment Terms</label>
+            <input id="f_terms" placeholder="e.g. 30% deposit, 70% before shipment" oninput="updatePreview()">
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>5. AI Parser</h2>
+        <textarea id="rawInput" placeholder="Paste WhatsApp/WeChat messages here...
+Example:
+Product: LED Lights, Qty: 1000 pcs, Price: $5 each
+Shipping: $100
+Payment: 30% deposit, 70% before shipment
+Lead time: 15 days"></textarea>
+        
+        <div id="pasteNotice" class="paste-notice">Paste detected! Parsing automatically...</div>
+        
+        <div class="controls">
+            <button id="btnParse" onclick="runAI()" style="flex: 2;">🧠 Parse with AI</button>
+            <button onclick="clearInput()" class="btn-secondary" style="flex: 1;">🗑️ Clear Text</button>
+        </div>
+        
+        <div id="status" class="status">Processing with AI...</div>
+    </div>
+    
+    <div class="card">
+        <h2 id="display-title">SALES CONTRACT</h2>
+        <div id="contract-capture" class="contract-preview">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <h1 style="margin-bottom: 4px;" id="contract-title">SALES CONTRACT</h1>
+                <p style="color: #666;">No. <span id="preview-contract-no">PI-2026-001</span> &nbsp; Date: <span id="preview-date">2026-03-02</span></p>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
+                <div style="flex: 1; padding-right: 20px;">
+                    <h3 style="margin-top: 0;">SELLER:</h3>
+                    <p><strong id="preview-seller-company">[Your Company]</strong><br>
+                    <span id="preview-seller-address">[Your Address]</span><br>
+                    Tel/Fax: <span id="preview-seller-contact">[Your Contact]</span></p>
+                </div>
+                <div style="flex: 1; padding-left: 20px; border-left: 1px solid #eee;">
+                    <h3 style="margin-top: 0;">BUYER:</h3>
+                    <p><strong>[Buyer Company]</strong><br>
+                    [Buyer Address]<br>
+                    Tel/Fax: [Buyer Contact]</p>
+                </div>
+            </div>
+            
+            <table class="preview-table">
+                <thead>
+                    <tr>
+                        <th>Product Description</th>
+                        <th>Quantity</th>
+                        <th>Unit Price</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody id="preview-products-body">
+                    <!-- Products will be added here -->
+                </tbody>
+                <tfoot id="preview-totals-footer">
+                    <!-- Totals will be added here -->
+                </tfoot>
+            </table>
+            
+            <div style="margin-top: 24px;">
+                <p><strong>Payment Terms:</strong> <span id="preview-terms">30% deposit, 70% before shipment</span></p>
+                <p><strong>Lead Time:</strong> <span id="preview-leadtime">15 days</span></p>
+                <p><strong>Shipment:</strong> FOB Shanghai</p>
+                <p><strong>Destination:</strong> Chittagong, Bangladesh</p>
+            </div>
+            
+            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; text-align: right;">
+                <p>For and on behalf of</p>
+                <p><strong id="preview-seller-company-footer">[Your Company]</strong></p>
+            </div>
+        </div>
+        
+        <div class="controls" style="margin-top: 20px;">
+            <button onclick="generateImage()" style="flex: 1;">🖼️ Generate Contract Image</button>
+            <button onclick="window.print()" class="btn-secondary" style="flex: 1;">🖨️ Print / Save as PDF</button>
+        </div>
+    </div>
+
+    <script>
+        // API Key (use your DeepSeek API Key)
+        const API_KEY = "sk-6b5b7627c1a5488fa79a09ca305dd001";
+        
+        let lastGrabbedText = "";
+        
+        // Initialize on page load
+        window.onload = () => {
+            // Load saved seller info
+            const savedData = JSON.parse(localStorage.getItem('contract_seller_info') || '{}');
+            Object.keys(savedData).forEach(id => {
+                if(document.getElementById(id)) {
+                    document.getElementById(id).value = savedData[id];
+                }
+            });
+            
+            // Set today's date
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('preview-date').textContent = today;
+            
+            // Add initial item row
+            addItemRow();
+            
+            // Setup paste detection
+            setupPasteDetection();
+            
+            // Initial preview update
+            updatePreview();
+        };
+        
+        // Seller info management
+        function saveSellerInfo() {
+            const data = {};
+            document.querySelectorAll('.local-store').forEach(el => {
+                data[el.id] = el.value;
+            });
+            localStorage.setItem('contract_seller_info', JSON.stringify(data));
+            updatePreview();
+            alert("✅ Seller info saved!");
+        }
+        
+        // Product management (simple inline editing)
+        function addItemRow(description = "", qty = "", price = "") {
+            const tbody = document.getElementById('items-body');
+            const row = document.createElement('tr');
+            const rowId = Date.now() + Math.random();
+            row.id = 'row-' + rowId;
+            
+            row.innerHTML = `
+                <td><input type="text" class="item-desc" value="${description}" placeholder="Product description" oninput="updatePreview()"></td>
+                <td><input type="text" class="item-qty" value="${qty}" placeholder="e.g. 1000 pcs" oninput="updatePreview()"></td>
+                <td><input type="text" class="item-price" value="${price}" placeholder="e.g. USD 5.00" oninput="updatePreview()"></td>
+                <td><button onclick="removeItemRow('${rowId}')" class="remove-btn" title="Remove">×</button></td>
+            `;
+            
+            tbody.appendChild(row);
+            updatePreview();
+        }
+        
+        function removeItemRow(rowId) {
+            const row = document.getElementById('row-' + rowId);
+            if (row) {
+                row.remove();
+                updatePreview();
+            }
+        }
+        
+        function clearAllItems() {
+            const tbody = document.getElementById('items-body');
+            tbody.innerHTML = '';
+            addItemRow(); // Add one empty row back
+        }
+        
+        function getItemsData() {
+            const items = [];
+            const rows = document.querySelectorAll('#items-body tr');
+            
+            rows.forEach(row => {
+                const desc = row.querySelector('.item-desc')?.value || '';
+                const qty = row.querySelector('.item-qty')?.value || '';
+                const price = row.querySelector('.item-price')?.value || '';
+                
+                if (desc.trim() || qty.trim() || price.trim()) {
+                    items.push({
+                        description: desc,
+                        qty: qty,
+                        price: price
+                    });
+                }
+            });
+            
+            return items;
+        }
+        
+        // Template switching
+        function switchTemplate() {
+            const type = document.getElementById('template-type').value;
+            const title = type === 'SC' ? 'SALES CONTRACT' : 'PROFORMA INVOICE';
+            document.getElementById('display-title').innerText = title;
+            document.getElementById('contract-title').innerText = title;
+        }
+        
+        // Paste detection and AI parsing
+        function setupPasteDetection() {
+            const textarea = document.getElementById('rawInput');
+            const notice = document.getElementById('pasteNotice');
+            
+            textarea.addEventListener('paste', function(e) {
+                notice.style.display = 'block';
+                
+                setTimeout(() => {
+                    const text = textarea.value.trim();
+                    if (text && text.length > 10) {
+                        setTimeout(() => runAI(), 300);
+                    }
+                }, 100);
+                
+                setTimeout(() => {
+                    notice.style.display = 'none';
+                }, 3000);
+            });
+        }
+        
+        function clearInput() {
+            document.getElementById('rawInput').value = "";
+            lastGrabbedText = "";
+            alert("Text cleared. Ready for new order.");
+        }
+        
+        // 用于存储上一次抓取的内容，防止重复累加
+        let lastGrabbedText = "";
+        
+        // 【核心功能】：监听窗口聚焦事件，自动累加剪贴板内容
+        window.addEventListener('focus', async () => {
+            try {
+                // 读取剪贴板内容
+                const currentClipboardText = await navigator.clipboard.readText();
+                
+                // 逻辑判断：如果内容不为空、不是刚才抓过的、且长度大于2（过滤掉无意义点击）
+                if (currentClipboardText && currentClipboardText !== lastGrabbedText && currentClipboardText.length > 2) {
+                    const inputArea = document.getElementById('rawInput');
+                    
+                    // 执行"累加"逻辑：在旧内容后面追加新内容，并用分割线区分
+                    const separator = inputArea.value ? "\n---\n" : "";
+                    inputArea.value += separator + currentClipboardText;
+                    
+                    // 更新记录，防止循环抓取
+                    lastGrabbedText = currentClipboardText;
+                    
+                    // 显示提示
+                    showToast(`📋 已添加: ${currentClipboardText.substring(0, 30)}...`);
+                    
+                    // 如果内容较长，自动触发AI解析
+                    if (currentClipboardText.length > 20) {
+                        setTimeout(() => {
+                            document.getElementById('pasteNotice').style.display = 'block';
+                            setTimeout(() => runAI(), 500);
+                        }, 300);
+                    }
+                }
+            } catch (err) {
+                // 如果用户还没授权粘贴权限，控制台会记录
+                console.warn("无法自动抓取剪贴板，请确保已授予粘贴权限。");
+            }
+        });
+        
+        // 显示临时提示
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.textContent = msg;
+            toast.style.cssText = 'position:fixed; top:20px; right:20px; background:#007aff; color:white; padding:8px 16px; border-radius:8px; z-index:9999; font-size:14px; box-shadow:0 4px 12px rgba(0,0,0,0.15);';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }
+        
+        // AI parsing function
+        async function runAI() {
+            const text = document.getElementById('rawInput').value;
+            if (!text) return alert("Please paste some text first");
+            
+            const btn = document.getElementById('btnParse');
+            const status = document.getElementById('status');
+            btn.disabled = true;
+            status.style.display = "block";
+            
+            try {
+                const response = await fetch("https://api.deepseek.com/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: "deepseek-chat",
+                        messages: [
+                            {
+                                role: "system",
+                                content: `You are a trade assistant. Extract contract elements from the conversation.
+                                
+                                IMPORTANT:
+                                1. If the input is in Chinese, translate key information to English
+                                2. Extract these fields (all in English):
+                                   - items (array of products, each with: description, qty, price)
+                                   - shipping (shipping fee with currency)
+                                   - terms (payment terms)
+                                   - leadtime (delivery lead time)
+                                3. Return ONLY pure JSON format, no markdown code blocks
+                                
+                                Example: {
+                                  "items": [
+                                    {"description": "LED Lights", "qty": "1000 pcs", "price": "USD 5.00"},
+                                    {"description": "Solar Panels", "qty": "500 pcs", "price": "USD 25.00"}
+                                  ],
+                                  "shipping": "USD 150.00",
+                                  "terms": "30% deposit, 70% before shipment",
+                                  "leadtime": "15 days"
+                                }`
+                            },
+                            { role: "user", content: text }
+                        ],
+                        response_format: { "type": "json_object" }
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
+                    throw new Error("Invalid response format from DeepSeek");
+                }
+                
+                const result = JSON.parse(data.choices[0].message.content);
+                
+                // Clear existing items
+                clearAllItems();
+                
+                // Add items from AI response
+                if (result.items && Array.isArray(result.items)) {
+                    result.items.forEach(item => {
+                        addItemRow(item.description || "", item.qty || "", item.price || "");
+                    });
+                }
+                
+                // Fill other fields
+                document.getElementById('f_shipping').value = result.shipping || "";
+                document.getElementById('f_terms').value = result.terms || "";
+                document.getElementById('f_leadtime').value = result.leadtime || "";
+                
+                updatePreview();
+                alert(`✅ AI parsing completed! Found ${result.items ? result.items.length : 0} product(s)`);
+                
+            } catch (e) {
+                console.error(e);
+                alert(`Parsing failed: ${e.message}\n\nPlease check: 1. API Key is correct; 2. Sufficient balance; 3. Network connectivity.`);
+            } finally {
+                btn.disabled = false;
+                status.style.display = "none";
+            }
+        }
+        
+        // Preview update function
+        function updatePreview() {
+            // Update seller info
+            document.getElementById('preview-seller-company').textContent = 
+                document.getElementById('seller_company').value || '[Your Company]';
+            document.getElementById('preview-seller-address').textContent = 
+                document.getElementById('seller_address').value || '[Your Address]';
+            document.getElementById('preview-seller-contact').textContent = 
+                document.getElementById('seller_contact').value || '[Your Contact]';
+            document.getElementById('preview-seller-company-footer').textContent = 
+                document.getElementById('seller_company').value || '[Your Company]';
+            
+            document.getElementById('preview-contract-no').textContent = 
+                document.getElementById('contract_no').value;
+            
+            // Update terms
+            document.getElementById('preview-terms').textContent = 
+                document.getElementById('f_terms').value || '30% deposit, 70% before shipment';
+            document.getElementById('preview-leadtime').textContent = 
+                document.getElementById('f_leadtime').value || '15 days';
+            
+            // Update products table
+            const items = getItemsData();
+            const tbody = document.getElementById('preview-products-body');
+            let subtotal = 0;
+            
+            tbody.innerHTML = '';
+            
+            items.forEach(item => {
+                const tr = document.createElement('tr');
+                
+                // Calculate amount if possible
+                let amount = '';
+                const qtyMatch = item.qty.match(/(\d+(?:\.\d+)?)/);
+                const priceMatch = item.price.match(/(\d+(?:\.\d+)?)/);
+                
+                if (qtyMatch && priceMatch) {
+                    const qty = parseFloat(qtyMatch[1]);
+                    const price = parseFloat(priceMatch[1]);
+                    const itemAmount = qty * price;
+                    subtotal += itemAmount;
+                    amount = formatCurrency(item.price, itemAmount);
+                }
+                
+                tr.innerHTML = `
+                    <td>${item.description || ''}</td>
+                    <td>${item.qty || ''}</td>
+                    <td>${item.price || ''}</td>
+                    <td>${amount}</td>
+                `;
+                
+                tbody.appendChild(tr);
+            });
+            
+            // If no items, add a placeholder
+            if (items.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td>LED Lights</td>
+                        <td>1000 pcs</td>
+                        <td>USD 5.00</td>
+                        <td>USD 5,000.00</td>
+                    </tr>
+                `;
+                subtotal = 5000;
+            }
+            
+            // Calculate shipping
+            let shipping = 0;
+            const shippingText = document.getElementById('f_shipping')?.value || '';
+            const shippingMatch = shippingText.match(/(\d+(?:\.\d+)?)/);
+            if (shippingMatch) {
+                shipping = parseFloat(shippingMatch[1]);
+            }
+            
+            const grandTotal = subtotal + shipping;
+            
+            // Update totals footer
+            const tfoot = document.getElementById('preview-totals-footer');
+            const currency = detectCurrency(shippingText || 'USD');
+            
+            tfoot.innerHTML = `
+                <tr style="background: #f8f9fa;">
+                    <td colspan="3" style="text-align: right; font-weight: bold;">Subtotal:</td>
+                    <td style="font-weight: bold;">${currency} ${subtotal.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                </tr>
+                <tr style="background: #f8f9fa;">
+                    <td colspan="3" style="text-align: right; font-weight: bold;">Shipping Fee:</td>
+                    <td style="font-weight: bold;">${shippingText || currency + ' 0.00'}</td>
+                </tr>
+                <tr style="background: #e9ecef; font-weight: bold;">
+                    <td colspan="3" style="text-align: right;">TOTAL:</td>
+                    <td>${currency} ${grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                </tr>
+            `;
+        }
+        
+        // Helper functions
+        function formatCurrency(priceText, amount) {
+            let currency = 'USD';
+            if (priceText.includes('USD') || priceText.includes('$')) {
+                currency = 'USD';
+            } else if (priceText.includes('CNY') || priceText.includes('¥')) {
+                currency = 'CNY';
+            } else if (priceText.includes('EUR') || priceText.includes('€')) {
+                currency = 'EUR';
+            }
+            return `${currency} ${amount.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        }
+        
+        function detectCurrency(text) {
+            if (text.includes('USD') || text.includes('$')) return 'USD';
+            if (text.includes('CNY') || text.includes('¥')) return 'CNY';
+            if (text.includes('EUR') || text.includes('€')) return 'EUR';
+            return 'USD';
+        }
+        
+        // Generate contract image
+        function generateImage() {
+            const area = document.getElementById('contract-capture');
+            html2canvas(area, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff'
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `Contract_${new Date().getTime()}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>

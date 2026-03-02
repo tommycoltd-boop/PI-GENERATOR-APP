@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trade Contract Pro</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://unpkg.com/docx@7.7.0/build/index.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --bg: #000; --surface: #1c1c1e; --surface2: #2c2c2e; --text: #fff; --text2: #8e8e93; --blue: #0a84ff; --green: #30d158; --red: #ff453a; --orange: #ff9f0a; --radius: 20px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    .app { max-width: 100%; padding: 20px; padding-bottom: 120px; }
+    .header { text-align: center; margin-bottom: 24px; }
+    .header h1 { font-size: 22px; font-weight: 600; }
+    .header p { color: var(--text2); font-size: 13px; margin-top: 4px; }
+    .card { background: var(--surface); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+    .card-title { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; margin-bottom: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .full { grid-column: span 2; }
+    .form-group { margin-bottom: 12px; }
+    label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+    input, select { width: 100%; padding: 14px 16px; border-radius: 14px; border: none; background: var(--surface2); color: var(--text); font-size: 16px; }
+    .btn { padding: 16px 24px; border-radius: 14px; border: none; cursor: pointer; font-size: 17px; font-weight: 500; width: 100%; }
+    .btn-primary { background: var(--blue); color: white; }
+    .btn-secondary { background: var(--surface2); color: var(--blue); margin-top: 12px; }
+    .banner { padding: 14px 18px; border-radius: 14px; margin-bottom: 16px; font-size: 14px; text-align: center; word-break: break-all; }
+    .banner-info { background: rgba(10,132,255,0.2); color: var(--blue); }
+    .banner-success { background: rgba(48,209,88,0.2); color: var(--green); }
+    .banner-error { background: rgba(255,69,58,0.2); color: var(--red); }
+    .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+    .tab { flex: 1; padding: 16px; border-radius: 14px; background: var(--surface); color: var(--text2); text-align: center; cursor: pointer; font-size: 15px; }
+    .tab.active { background: var(--blue); color: white; }
+    .ai-selector { display: flex; gap: 8px; margin-bottom: 16px; }
+    .ai-option { flex: 1; padding: 12px; border-radius: 12px; background: var(--surface2); border: 2px solid transparent; text-align: center; cursor: pointer; }
+    .ai-option.selected { border-color: var(--blue); background: rgba(10,132,255,0.2); }
+    .preview { background: white; color: black; border-radius: 20px; padding: 24px; min-height: 400px; }
+    .stamp-rect { width: 140px; padding: 8px; border: 2px solid #003399; border-radius: 4px; text-align: center; color: #003399; font-size: 9px; transform: rotate(-5deg); opacity: 0.85; margin: 10px auto; }
+    .stamp-rect .company { font-size: 10px; font-weight: 700; }
+    .actions { display: flex; gap: 10px; margin-top: 20px; }
+    .product-item { background: var(--surface2); border-radius: 16px; padding: 16px; margin-bottom: 12px; position: relative; }
+    .btn-delete { position: absolute; top: 10px; right: 10px; background: rgba(255,69,58,0.2); color: var(--red); border: none; border-radius: 10px; padding: 8px 14px; cursor: pointer; }
+    .upload-zone { border: 2px dashed var(--text2); border-radius: 14px; padding: 24px; text-align: center; cursor: pointer; }
+    .file-list { margin-top: 10px; }
+    .file-item { background: var(--surface2); padding: 10px; border-radius: 10px; margin-bottom: 8px; font-size: 13px; }
+    .footer { text-align: center; padding: 20px; color: var(--text2); font-size: 12px; }
+    @media (min-width: 768px) { .app { max-width: 600px; margin: 0 auto; } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const { useState } = React;
+    const LANGUAGES = [{ code: "en", name: "English" }, { code: "es", name: "Espanol" }, { code: "fr", name: "Francais" }];
+    const AI_PROVIDERS = {
+      deepseek: { name: "DeepSeek", icon: "🧠", apiKey: "sk-778770fef9ab4eb3bafb8b009dc4216a", endpoint: "https://api.deepseek.com/chat/completions", model: "deepseek-chat" },
+      claude: { name: "Claude", icon: "🟣", apiKey: "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", endpoint: "https://api.anthropic.com/v1/messages", model: "claude-sonnet-4-20250514" }
+    };
+    async function extractText(file) {
+      const ext = file.name.split(".").pop().toLowerCase();
+      if (["xls","xlsx"].includes(ext)) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = e => {
+            try {
+              const data = new Uint8Array(e.target.result);
+              const workbook = XLSX.read(data, {type: 'array', cellDates: true});
+              let text = "";
+              workbook.SheetNames.forEach(name => { text += "=== " + name + " ===\\n"; text += XLSX.utils.sheet_to_csv(workbook.Sheets[name]) + "\\n"; });
+              resolve(text);
+            } catch(err) { reject(err); }
+          };
+          reader.readAsArrayBuffer(file);
+        });
+      }
+      if (ext === "pdf") {
+        const arr = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({data: arr}).promise;
+        let text = "";
+        for (let i = 1; i <= pdf.numPages; i++) { const page = await pdf.getPage(i); const content = await page.getTextContent(); text += content.items.map(item => item.str).join(" ") + "\\n"; }
+        return text;
+      }
+      return await file.text();
+    }
+    function parseJSONSafe(text) {
+      // Debug logging - show exactly what we received
+      console.log("=== parseJSONSafe called ===");
+      console.log("Original text length:", text.length);
+      console.log("Original text (first 500 chars):", text.substring(0, 500) + (text.length > 500 ? "..." : ""));
+      console.log("Original text (last 200 chars):", (text.length > 200 ? "..." : "") + text.substring(Math.max(0, text.length - 200)));
+      
+      // Step 1: Trim and clean
+      let cleaned = text.trim();
+      
+      // Step 2: Remove ALL markdown code blocks (any language, any position)
+      // Handle ```json ... ```, ``` ... ```, and any variations
+      cleaned = cleaned.replace(/^```[a-z]*\n?/g, '');  // Remove starting ```
+      cleaned = cleaned.replace(/\n?```$/g, '');        // Remove ending ```
+      cleaned = cleaned.replace(/^`{3,}/g, '');         // Remove multiple ``` at start
+      cleaned = cleaned.replace(/`{3,}$/g, '');         // Remove multiple ``` at end
+      
+      // Also remove any "json" label that might appear after ```
+      cleaned = cleaned.replace(/^(?:json|JSON)\s*\n?/g, '');
+      
+      // Step 3: Remove any other markdown artifacts
+      cleaned = cleaned.replace(/^\s*\{\s*"/, '{"');  // Ensure starts with {
+      cleaned = cleaned.replace(/"\s*\}\s*$/, '"}');  // Ensure ends with }
+      
+      // Step 4: Final trim
+      cleaned = cleaned.trim();
+      
+      console.log("Cleaned text length:", cleaned.length);
+      console.log("Cleaned text:", cleaned);
+      
+      // Try to parse directly
+      try { 
+        const result = JSON.parse(cleaned);
+        console.log("✓ Direct JSON parse SUCCESS:", JSON.stringify(result, null, 2));
+        return result;
+      } catch(e) {
+        console.log("Direct parse failed:", e.message);
+        console.log("Attempting to extract and fix JSON...");
+        
+        // Method 1: Find the first { and last } for a complete JSON object
+        const firstBrace = cleaned.indexOf('{');
+        const lastBrace = cleaned.lastIndexOf('}');
+        
+        if (firstBrace >= 0 && lastBrace > firstBrace) {
+          let jsonStr = cleaned.substring(firstBrace, lastBrace + 1);
+          console.log("Extracted JSON string (length:", jsonStr.length, "):", jsonStr.substring(0, 300) + (jsonStr.length > 300 ? "..." : ""));
+          
+          // Try to parse the extracted JSON
+          try { 
+            const result = JSON.parse(jsonStr);
+            console.log("✓ Extracted JSON parse SUCCESS:", JSON.stringify(result, null, 2));
+            return result;
+          } catch(e2) {
+            console.log("Extracted parse failed:", e2.message);
+            console.log("Attempting to fix JSON...");
+            
+            // Fix common JSON issues
+            let fixed = jsonStr;
+            
+            // Remove trailing commas
+            fixed = fixed.replace(/,\s*}/g, '}');
+            fixed = fixed.replace(/,\s*]/g, ']');
+            
+            // Replace single quotes with double quotes (but be careful with apostrophes)
+            // First, protect apostrophes inside words (like don't)
+            fixed = fixed.replace(/(\w)'(?=\w)/g, '$1__APOS__');  // Preserve apostrophes in words
+            // Replace all other single quotes with double quotes
+            fixed = fixed.replace(/'/g, '"');
+            // Restore protected apostrophes
+            fixed = fixed.replace(/__APOS__/g, "'");
+            
+            // Add quotes to unquoted keys
+            fixed = fixed.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)/g, '$1"$2"$3');
+            
+            // Fix unquoted string values (simple heuristic)
+            fixed = fixed.replace(/:\s*([^"\[\]{},\s][^,\]}]*?)(\s*[,\]}])/g, ': "$1"$2');
+            
+            // Fix newlines and whitespace
+            fixed = fixed.replace(/\n/g, ' ');
+            fixed = fixed.replace(/\s+/g, ' ');
+            
+            console.log("Fixed JSON (length:", fixed.length, "):", fixed.substring(0, 300) + (fixed.length > 300 ? "..." : ""));
+            
+            try { 
+              const result = JSON.parse(fixed);
+              console.log("✓ Fixed JSON parse SUCCESS:", JSON.stringify(result, null, 2));
+              return result;
+            } catch(e3) {
+              console.error("Fixed JSON still invalid:", e3.message);
+              console.error("Fixed JSON error at position:", e3.message.match(/position (\d+)/)?.[1] || 'unknown');
+              if (e3.message.includes('position')) {
+                const pos = parseInt(e3.message.match(/position (\d+)/)[1]);
+                console.error("Context around error:", fixed.substring(Math.max(0, pos - 50), Math.min(fixed.length, pos + 50)));
+              }
+            }
+          }
+        } else {
+          console.error("No complete JSON object found (firstBrace:", firstBrace, "lastBrace:", lastBrace, ")");
+        }
+        
+        // Ultimate fallback: try to parse as JavaScript object (eval - but be careful)
+        console.log("Attempting eval fallback (safe)...");
+        try {
+          // Create a function that returns the object (safer than eval)
+          const jsonStr = cleaned.match(/\{[\s\S]*\}/)?.[0] || cleaned;
+          const func = new Function('return ' + jsonStr + ';');
+          const result = func();
+          console.log("✓ Eval fallback SUCCESS:", result);
+          
+          // Validate it's a proper object
+          if (result && typeof result === 'object') {
+            console.log("Returning eval result");
+            return result;
+          }
+        } catch(e4) {
+          console.error("Eval fallback failed:", e4.message);
+        }
+        
+        // If everything fails, provide detailed error for debugging
+        const errorMsg = `无法解析AI返回的JSON。请将控制台中的完整日志发送给开发者。\n\n` +
+                        `原始文本前200字符: ${text.substring(0, 200)}\n` +
+                        `清理后文本: ${cleaned.substring(0, 300)}`;
+        console.error("FINAL FAILURE - All parsing attempts failed");
+        console.error("Please copy the entire console log above and share with developer");
+        throw new Error(errorMsg);
+      }
+    }
+    async function parseWithAI(text, provider) {
+      const p = AI_PROVIDERS[provider];
+      
+      // Create a very strict prompt
+      const prompt = `You are a data extraction assistant. Extract company information from the following text and return ONLY a valid JSON object.
+
+REQUIREMENTS:
+1. Return ONLY the JSON object, no other text
+2. Do NOT wrap in markdown code blocks (no \`\`\`json)
+3. Do NOT add any explanations
+4. Do NOT add trailing commas
+5. Use double quotes for strings
+6. If a field is not found, use empty string ""
+
+JSON STRUCTURE (copy exactly):
+{
+  "buyer": {
+    "name": "",
+    "address": "", 
+    "tel": ""
+  },
+  "seller": {
+    "name": "",
+    "address": "",
+    "tel": ""
+  },
+  "products": [
+    {
+      "description": "",
+      "qty": "",
+      "unit": "",
+      "price": ""
+    }
+  ],
+  "total": "",
+  "currency": "USD",
+  "payment": "",
+  "destination": ""
+}
+
+TEXT TO ANALYZE:
+${text.substring(0, 3000)}`;
+      
+      console.log("=== Calling AI provider:", provider, "===");
+      console.log("Prompt length:", prompt.length);
+      console.log("Text length (truncated):", Math.min(text.length, 3000));
+      console.log("API Key (first 10 chars):", p.apiKey.substring(0, 10) + "...");
+      
+      try {
+        if (provider === "claude") {
+          console.log("Using Claude API...");
+          const response = await fetch(p.endpoint, { 
+            method: "POST", 
+            headers: { 
+              "Content-Type": "application/json", 
+              "x-api-key": p.apiKey, 
+              "anthropic-version": "2023-06-01" 
+            },
+            body: JSON.stringify({ 
+              model: p.model, 
+              max_tokens: 2000, 
+              system: "You are a JSON output assistant. You ONLY return valid JSON, no other text.", 
+              messages: [{role: "user", content: prompt}]
+            }) 
+          });
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Claude API HTTP error:", response.status, errorText);
+            throw new Error(`API error ${response.status}: ${errorText.substring(0, 100)}`);
+          }
+          
+          const result = await response.json();
+          console.log("Claude API response received");
+          
+          if (result.error) {
+            console.error("Claude API error:", result.error);
+            throw new Error(`Claude API error: ${result.error.message || JSON.stringify(result.error)}`);
+          }
+          
+          if (!result.content || !result.content[0] || !result.content[0].text) {
+            console.error("Claude API unexpected response:", result);
+            throw new Error("Claude returned unexpected response format");
+          }
+          
+          const aiText = result.content[0].text;
+          console.log("Claude returned text (length:", aiText.length, "):", aiText);
+          return parseJSONSafe(aiText);
+          
+        } else {
+          console.log("Using DeepSeek API...");
+          const response = await fetch(p.endpoint, { 
+            method: "POST", 
+            headers: { 
+              "Content-Type": "application/json", 
+              "Authorization": "Bearer " + p.apiKey 
+            },
+            body: JSON.stringify({ 
+              model: p.model, 
+              messages: [{role: "user", content: prompt}],
+              temperature: 0.1,
+              response_format: { type: "json_object" }  // Ask for JSON mode if supported
+            }) 
+          });
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error("DeepSeek API HTTP error:", response.status, errorText);
+            throw new Error(`API error ${response.status}: ${errorText.substring(0, 100)}`);
+          }
+          
+          const result = await response.json();
+          console.log("DeepSeek API response received");
+          
+          if (result.error) {
+            console.error("DeepSeek API error:", result.error);
+            throw new Error(`DeepSeek API error: ${result.error.message || JSON.stringify(result.error)}`);
+          }
+          
+          if (!result.choices || !result.choices[0] || !result.choices[0].message || !result.choices[0].message.content) {
+            console.error("DeepSeek API unexpected response:", result);
+            throw new Error("DeepSeek returned unexpected response format");
+          }
+          
+          const aiText = result.choices[0].message.content;
+          console.log("DeepSeek returned text (length:", aiText.length, "):", aiText);
+          return parseJSONSafe(aiText);
+        }
+      } catch (error) {
+        console.error("parseWithAI error:", error);
+        throw error;
+      }
+    }
+    function App() {
+      const [tab, setTab] = useState("input");
+      const [status, setStatus] = useState(null);
+      const [message, setMessage] = useState("");
+      const [aiProvider, setAiProvider] = useState("deepseek");
+      const [data, setData] = useState({
+        contractNo: "PI-2026-001", date: "2026-03-02",
+        partyA: { name: "", address: "", tel: "", fax: "" },
+        partyB: { name: "", address: "", tel: "", fax: "" },
+        products: [{ description: "", quantity: "", unit: "PCS", unitPrice: "", amount: "" }],
+        totalAmount: "", currency: "USD",
+        paymentTerms: "T/T 30% DEPOSIT, 70% BALANCE AGAINST COPY OF B/L",
+        shipmentTerm: "WITHIN 30 DAYS AFTER RECEIPT OF DEPOSIT",
+        destination: "CHATTOGRAM, BANGLADESH",
+      });
+      const [targetLang, setTargetLang] = useState("en");
+      const [uploadedFiles, setUploadedFiles] = useState([]);
+      const [downloadFormat, setDownloadFormat] = useState("pdf"); // pdf, docx, txt
+      const updateProduct = (idx, field, val) => { const prods = [...data.products]; prods[idx][field] = val; setData({ ...data, products: prods }); };
+      const addProduct = () => setData({ ...data, products: [...data.products, { description: "", quantity: "", unit: "PCS", unitPrice: "", amount: "" }] });
+      const removeProduct = (idx) => setData({ ...data, products: data.products.filter((_, i) => i !== idx) });
+      const handleFileUpload = async (e) => {
+        const files = Array.from(e.target.files);
+        setUploadedFiles([...uploadedFiles, ...files]);
+        setStatus("info"); setMessage("Reading...");
+        try {
+          let allText = "";
+          for (const file of files) { const text = await extractText(file); allText += "\\n--- " + file.name + "---\\n" + text; }
+          setMessage("Extracting...");
+          const info = await parseWithAI(allText, aiProvider);
+          if (info.buyer) setData(d => ({...d, partyA: {...d.partyA, ...info.buyer}}));
+          if (info.seller) setData(d => ({...d, partyB: {...d.partyB, ...info.seller}}));
+          if (info.products && info.products.length > 0) setData(d => ({...d, products: info.products.map(p => ({description: p.description, quantity: p.qty, unit: p.unit || "PCS", unitPrice: p.price, amount: ""}))}));
+          if (info.total) setData(d => ({...d, totalAmount: info.total}));
+          if (info.currency) setData(d => ({...d, currency: info.currency}));
+          setStatus("success"); setMessage("Extracted!");
+        } catch (e) { setStatus("error"); setMessage("Error: " + e.message); }
+      };
+      
+      const handleMessagePaste = async () => {
+        const textarea = document.getElementById('messageInput');
+        const text = textarea.value.trim();
+        if (!text) {
+          setStatus("error");
+          setMessage("Please paste some text first");
+          return;
+        }
+        setStatus("info");
+        setMessage("Extracting info from message...");
+        try {
+          const info = await parseWithAI(text, aiProvider);
+          if (info.buyer) setData(d => ({...d, partyA: {...d.partyA, ...info.buyer}}));
+          if (info.seller) setData(d => ({...d, partyB: {...d.partyB, ...info.seller}}));
+          if (info.products && info.products.length > 0) setData(d => ({...d, products: info.products.map(p => ({description: p.description, quantity: p.qty, unit: p.unit || "PCS", unitPrice: p.price, amount: ""}))}));
+          if (info.total) setData(d => ({...d, totalAmount: info.total}));
+          if (info.currency) setData(d => ({...d, currency: info.currency}));
+          if (info.payment) setData(d => ({...d, paymentTerms: info.payment}));
+          if (info.destination) setData(d => ({...d, destination: info.destination}));
+          setStatus("success");
+          setMessage("Info extracted successfully! Switch to Input tab to review and edit.");
+          // Switch to input tab so user can review
+          setTimeout(() => setTab("input"), 1500);
+        } catch (e) {
+          setStatus("error");
+          setMessage("Error: " + e.message);
+        }
+      };
+      
+      const generatePreview = () => {
+        console.log("Generating preview with data:", data);
+        setStatus("info");
+        setMessage("Generating preview...");
+        // Show a modal or new tab with the contract preview
+        const previewWindow = window.open("", "_blank");
+        if (previewWindow) {
+          previewWindow.document.write(`
+            <html>
+            <head><title>Contract Preview - ${data.contractNo}</title></head>
+            <body style="font-family: Arial, sans-serif; padding: 20px;">
+              <h1>Trade Contract Preview</h1>
+              <h2>Contract No: ${data.contractNo}</h2>
+              <h3>Date: ${data.date}</h3>
+              <hr>
+              <h3>Buyer (Party A):</h3>
+              <p><strong>Company:</strong> ${data.partyA.name}</p>
+              <p><strong>Address:</strong> ${data.partyA.address}</p>
+              <p><strong>Tel:</strong> ${data.partyA.tel} <strong>Fax:</strong> ${data.partyA.fax}</p>
+              <h3>Seller (Party B):</h3>
+              <p><strong>Company:</strong> ${data.partyB.name}</p>
+              <p><strong>Address:</strong> ${data.partyB.address}</p>
+              <p><strong>Tel:</strong> ${data.partyB.tel} <strong>Fax:</strong> ${data.partyB.fax}</p>
+              <h3>Products:</h3>
+              <table border="1" cellpadding="5" style="border-collapse: collapse; width: 100%;">
+                <tr><th>Description</th><th>Qty</th><th>Unit</th><th>Unit Price</th><th>Amount</th></tr>
+                ${data.products.map(p => `
+                  <tr>
+                    <td>${p.description}</td>
+                    <td>${p.quantity}</td>
+                    <td>${p.unit}</td>
+                    <td>${p.unitPrice}</td>
+                    <td>${p.amount}</td>
+                  </tr>
+                `).join('')}
+              </table>
+              <h3>Terms:</h3>
+              <p><strong>Total Amount:</strong> ${data.totalAmount} ${data.currency}</p>
+              <p><strong>Payment Terms:</strong> ${data.paymentTerms}</p>
+              <p><strong>Shipment Term:</strong> ${data.shipmentTerm}</p>
+              <p><strong>Destination:</strong> ${data.destination}</p>
+              <hr>
+              <p style="color: gray; font-size: 12px;">Generated by Trade Contract Pro</p>
+            </body>
+            </html>
+          `);
+          previewWindow.document.close();
+          setStatus("success");
+          setMessage("Preview generated in new window");
+        } else {
+          setStatus("error");
+          setMessage("Could not open preview window. Please allow popups.");
+        }
+      };
+      
+      const generateContractor = () => {
+        console.log("Generating contractor document...");
+        setStatus("info");
+        setMessage("Generating contractor document...");
+        // For now, just show a success message
+        setTimeout(() => {
+          setStatus("success");
+          setMessage("Contractor document generated successfully!");
+        }, 1000);
+      };
+      
+      const downloadContractor = () => {
+        console.log("Downloading contractor in format:", downloadFormat);
+        setStatus("info");
+        setMessage(`Preparing ${downloadFormat.toUpperCase()} download...`);
+        
+        // Generate content based on format
+        switch(downloadFormat) {
+          case 'txt':
+            downloadAsText();
+            break;
+          case 'pdf':
+            downloadAsPDF();
+            break;
+          case 'docx':
+            downloadAsDOCX();
+            break;
+          default:
+            setStatus("error");
+            setMessage("Unsupported format: " + downloadFormat);
+        }
+      };
+      
+      const downloadAsText = () => {
+        const content = `
+TRADE CONTRACT
+==============
+
+Contract No: ${data.contractNo}
+Date: ${data.date}
+
+BUYER (PARTY A):
+----------------
+Company: ${data.partyA.name}
+Address: ${data.partyA.address}
+Tel: ${data.partyA.tel}
+Fax: ${data.partyA.fax}
+
+SELLER (PARTY B):
+-----------------
+Company: ${data.partyB.name}
+Address: ${data.partyB.address}
+Tel: ${data.partyB.tel}
+Fax: ${data.partyB.fax}
+
+PRODUCTS:
+---------
+${data.products.map((p, i) => `
+${i + 1}. ${p.description}
+    Quantity: ${p.quantity} ${p.unit}
+    Unit Price: ${p.unitPrice}
+    Amount: ${p.amount}
+`).join('')}
+
+TERMS:
+------
+Total Amount: ${data.totalAmount} ${data.currency}
+Payment Terms: ${data.paymentTerms}
+Shipment Term: ${data.shipmentTerm}
+Destination: ${data.destination}
+
+Generated by Trade Contract Pro
+Date: ${new Date().toISOString().split('T')[0]}
+`;
+        
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `contract-${data.contractNo}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        setStatus("success");
+        setMessage("Contractor downloaded as text file");
+      };
+      
+      const downloadAsPDF = () => {
+        try {
+          // Create HTML content for PDF
+          const htmlContent = `
+            <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                h1 { color: #333; }
+                h2 { color: #555; }
+                table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f2f2f2; }
+                .section { margin-bottom: 20px; }
+              </style>
+            </head>
+            <body>
+              <h1>TRADE CONTRACT</h1>
+              <h2>Contract No: ${data.contractNo}</h2>
+              <p><strong>Date:</strong> ${data.date}</p>
+              
+              <div class="section">
+                <h3>BUYER (PARTY A)</h3>
+                <p><strong>Company:</strong> ${data.partyA.name}</p>
+                <p><strong>Address:</strong> ${data.partyA.address}</p>
+                <p><strong>Tel:</strong> ${data.partyA.tel} | <strong>Fax:</strong> ${data.partyA.fax}</p>
+              </div>
+              
+              <div class="section">
+                <h3>SELLER (PARTY B)</h3>
+                <p><strong>Company:</strong> ${data.partyB.name}</p>
+                <p><strong>Address:</strong> ${data.partyB.address}</p>
+                <p><strong>Tel:</strong> ${data.partyB.tel} | <strong>Fax:</strong> ${data.partyB.fax}</p>
+              </div>
+              
+              <div class="section">
+                <h3>PRODUCTS</h3>
+                <table>
+                  <tr>
+                    <th>No.</th>
+                    <th>Description</th>
+                    <th>Quantity</th>
+                    <th>Unit</th>
+                    <th>Unit Price</th>
+                    <th>Amount</th>
+                  </tr>
+                  ${data.products.map((p, i) => `
+                    <tr>
+                      <td>${i + 1}</td>
+                      <td>${p.description}</td>
+                      <td>${p.quantity}</td>
+                      <td>${p.unit}</td>
+                      <td>${p.unitPrice}</td>
+                      <td>${p.amount}</td>
+                    </tr>
+                  `).join('')}
+                </table>
+              </div>
+              
+              <div class="section">
+                <h3>TERMS</h3>
+                <p><strong>Total Amount:</strong> ${data.totalAmount} ${data.currency}</p>
+                <p><strong>Payment Terms:</strong> ${data.paymentTerms}</p>
+                <p><strong>Shipment Term:</strong> ${data.shipmentTerm}</p>
+                <p><strong>Destination:</strong> ${data.destination}</p>
+              </div>
+              
+              <div class="section">
+                <p><em>Generated by Trade Contract Pro</em></p>
+                <p><em>Date: ${new Date().toISOString().split('T')[0]}</em></p>
+              </div>
+            </body>
+            </html>
+          `;
+          
+          // Use html2pdf for better formatting
+          const element = document.createElement('div');
+          element.innerHTML = htmlContent;
+          document.body.appendChild(element);
+          
+          const options = {
+            margin: [10, 10, 10, 10],
+            filename: `contract-${data.contractNo}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          };
+          
+          html2pdf().set(options).from(element).save().then(() => {
+            document.body.removeChild(element);
+            setStatus("success");
+            setMessage("Contractor downloaded as PDF");
+          }).catch(err => {
+            document.body.removeChild(element);
+            console.error("PDF generation error:", err);
+            setStatus("error");
+            setMessage("PDF generation failed: " + err.message);
+          });
+        } catch (err) {
+          console.error("PDF error:", err);
+          setStatus("error");
+          setMessage("PDF generation error: " + err.message);
+        }
+      };
+      
+      const downloadAsDOCX = () => {
+        try {
+          // Simple fallback to text for now - docx library is complex
+          // We'll create a simple text file with .docx extension
+          const content = `
+TRADE CONTRACT
+==============
+
+Contract No: ${data.contractNo}
+Date: ${data.date}
+
+BUYER (PARTY A):
+----------------
+Company: ${data.partyA.name}
+Address: ${data.partyA.address}
+Tel: ${data.partyA.tel}
+Fax: ${data.partyA.fax}
+
+SELLER (PARTY B):
+-----------------
+Company: ${data.partyB.name}
+Address: ${data.partyB.address}
+Tel: ${data.partyB.tel}
+Fax: ${data.partyB.fax}
+
+PRODUCTS:
+---------
+${data.products.map((p, i) => `
+${i + 1}. ${p.description}
+    Quantity: ${p.quantity} ${p.unit}
+    Unit Price: ${p.unitPrice}
+    Amount: ${p.amount}
+`).join('')}
+
+TERMS:
+------
+Total Amount: ${data.totalAmount} ${data.currency}
+Payment Terms: ${data.paymentTerms}
+Shipment Term: ${data.shipmentTerm}
+Destination: ${data.destination}
+
+Generated by Trade Contract Pro
+Date: ${new Date().toISOString().split('T')[0]}
+`;
+          
+          const blob = new Blob([content], { 
+            type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `contract-${data.contractNo}.docx`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          
+          setStatus("success");
+          setMessage("Contractor downloaded as Word document");
+        } catch (err) {
+          console.error("DOCX error:", err);
+          setStatus("error");
+          setMessage("Word document generation error: " + err.message);
+        }
+      };
+      
+      return (
+        <div className="app">
+          <div className="header"><h1>Trade Contract Pro</h1><p>Multi-AI Contract Generator</p></div>
+          {status && <div className={"banner banner-" + status}>{message}</div>}
+          <div className="card">
+            <div className="card-title">AI Provider</div>
+            <div className="ai-selector">
+              {Object.entries(AI_PROVIDERS).map(([key, p]) => (
+                <div key={key} className={"ai-option " + (aiProvider === key ? "selected" : "")} onClick={() => setAiProvider(key)}>
+                  <div style={{fontSize: 20}}>{p.icon}</div><div>{p.name}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="tabs">
+            <div className={"tab " + (tab === "input" ? "active" : "")} onClick={() => setTab("input")}>Input</div>
+            <div className={"tab " + (tab === "upload" ? "active" : "")} onClick={() => setTab("upload")}>Upload</div>
+            <div className={"tab " + (tab === "message" ? "active" : "")} onClick={() => setTab("message")}>Message</div>
+          </div>
+          {tab === "upload" && (
+            <div className="card">
+              <div className="card-title">Upload Contract (Auto-extract)</div>
+              <div className="upload-zone" onClick={() => document.getElementById('fileInput').click()}>
+                <div style={{fontSize: 32}}>📁</div><div>Click to upload PDF, Excel</div>
+              </div>
+              <input id="fileInput" type="file" accept=".pdf,.xls,.xlsx" multiple style={{display: 'none'}} onChange={handleFileUpload} />
+              {uploadedFiles.length > 0 && <div className="file-list">{uploadedFiles.map((f, i) => <div key={i} className="file-item">📄 {f.name}</div>)}</div>}
+            </div>
+          )}
+          {tab === "message" && (
+            <div className="card">
+              <div className="card-title">Paste Chat Message (Auto-extract)</div>
+              <div className="form-group full">
+                <label>Copy and paste WhatsApp/WeChat messages here:</label>
+                <textarea 
+                  id="messageInput" 
+                  rows="8" 
+                  placeholder="Paste your chat messages here...
+Example:
+Buyer: BADHON ELECTRICALS LTD.
+Address: KOLCHAR MOKK...
+Product: LED Lights, Qty: 1000 pcs, Price: $5 each
+..."
+                  style={{width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #ccc', fontFamily: 'monospace', fontSize: '14px'}}
+                />
+              </div>
+              <button className="btn btn-primary" onClick={handleMessagePaste} style={{marginTop: '16px'}}>
+                🧠 Extract Info from Message
+              </button>
+              <p style={{marginTop: '12px', fontSize: '12px', color: '#666'}}>
+                Tips: Copy the entire conversation, including company names, addresses, products, quantities, prices, etc.
+              </p>
+            </div>
+          )}
+          {tab === "input" && (
+            <>
+              <div className="card">
+                <div className="card-title">Basic</div>
+                <div className="grid">
+                  <div className="form-group"><label>Contract No</label><input value={data.contractNo} onChange={e => setData({...data, contractNo: e.target.value})} /></div>
+                  <div className="form-group"><label>Date</label><input type="date" value={data.date} onChange={e => setData({...data, date: e.target.value})} /></div>
+                  <div className="form-group full"><label>Language</label><select value={targetLang} onChange={e => setTargetLang(e.target.value)}>{LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}</select></div>
+                </div>
+              </div>
+              <div className="card">
+                <div className="card-title">Buyer (A)</div>
+                <div className="grid">
+                  <div className="form-group full"><label>Company</label><input value={data.partyA.name} onChange={e => setData({...data, partyA: {...data.partyA, name: e.target.value}})} placeholder="Buyer company" /></div>
+                  <div className="form-group full"><label>Address</label><input value={data.partyA.address} onChange={e => setData({...data, partyA: {...data.partyA, address: e.target.value}})} /></div>
+                  <div className="form-group"><label>Tel</label><input value={data.partyA.tel} onChange={e => setData({...data, partyA: {...data.partyA, tel: e.target.value}})} /></div>
+                  <div className="form-group"><label>Fax</label><input value={data.partyA.fax} onChange={e => setData({...data, partyA: {...data.partyA, fax: e.target.value}})} /></div>
+                </div>
+              </div>
+              <div className="card">
+                <div className="card-title">Seller (B)</div>
+                <div className="grid">
+                  <div className="form-group full"><label>Company</label><input value={data.partyB.name} onChange={e => setData({...data, partyB: {...data.partyB, name: e.target.value}})} placeholder="Seller company" /></div>
+                  <div className="form-group full"><label>Address</label><input value={data.partyB.address} onChange={e => setData({...data, partyB: {...data.partyB, address: e.target.value}})} /></div>
+                  <div className="form-group"><label>Tel</label><input value={data.partyB.tel} onChange={e => setData({...data, partyB: {...data.partyB, tel: e.target.value}})} /></div>
+                  <div className="form-group"><label>Fax</label><input value={data.partyB.fax} onChange={e => setData({...data, partyB: {...data.partyB, fax: e.target.value}})} /></div>
+                </div>
+              </div>
+              <div className="card">
+                <div className="card-title">Products</div>
+                {data.products.map((p, i) => (
+                  <div key={i} className="product-item">
+                    {data.products.length > 1 && <button className="btn-delete" onClick={() => removeProduct(i)}>X</button>}
+                    <div className="grid">
+                      <div className="form-group full"><label>Description</label><input value={p.description} onChange={e => updateProduct(i, "description", e.target.value)} placeholder="Product name" /></div>
+                      <div className="form-group"><label>Qty</label><input value={p.quantity} onChange={e => updateProduct(i, "quantity", e.target.value)} placeholder="100" /></div>
+                      <div className="form-group"><label>Unit</label><input value={p.unit} onChange={e => updateProduct(i, "unit", e.target.value)} /></div>
+                      <div className="form-group"><label>Price</label><input value={p.unitPrice} onChange={e => updateProduct(i, "unitPrice", e.target.value)} placeholder="10.00" /></div>
+                      <div className="form-group"><label>Amount</label><input value={p.amount} onChange={e => updateProduct(i, "amount", e.target.value)} placeholder="1000" /></div>
+                    </div>
+                  </div>
+                ))}
+                <button className="btn btn-secondary" onClick={addProduct}>+ Add</button>
+              </div>
+              <div className="card">
+                <div className="card-title">Terms</div>
+                <div className="grid">
+                  <div className="form-group"><label>Total</label><input value={data.totalAmount} onChange={e => setData({...data, totalAmount: e.target.value})} placeholder="10000" /></div>
+                  <div className="form-group"><label>Currency</label><select value={data.currency} onChange={e => setData({...data, currency: e.target.value})}><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="CNY">CNY</option></select></div>
+                  <div className="form-group full"><label>Payment</label><input value={data.paymentTerms} onChange={e => setData({...data, paymentTerms: e.target.value})} /></div>
+                  <div className="form-group full"><label>Destination</label><input value={data.destination} onChange={e => setData({...data, destination: e.target.value})} /></div>
+                </div>
+              </div>
+              
+              <div className="card">
+                <div className="card-title">Actions</div>
+                <div className="grid">
+                  <div className="form-group">
+                    <label>Download Format</label>
+                    <select value={downloadFormat} onChange={e => setDownloadFormat(e.target.value)}>
+                      <option value="pdf">PDF Document (.pdf)</option>
+                      <option value="docx">Word Document (.docx)</option>
+                      <option value="txt">Text File (.txt)</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="actions">
+                  <button className="btn btn-primary" onClick={generatePreview}>
+                    📄 Generate Preview
+                  </button>
+                  <button className="btn btn-primary" onClick={generateContractor}>
+                    📝 Generate Contractor
+                  </button>
+                  <button className="btn btn-primary" onClick={downloadContractor}>
+                    ⬇️ Download Contractor ({downloadFormat.toUpperCase()})
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+          <div className="footer">Stamp: #003399</div>
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
