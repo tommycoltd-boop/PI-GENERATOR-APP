@@ -480,14 +480,42 @@
     </style>
 </head>
 <body>
-    <div id="api-key-warning" style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; color: #856404;">
-        <strong>⚠️ API Keys Required:</strong> Before using, please set your API keys in the JavaScript code (lines 688-689). 
-        <a href="javascript:void(0)" onclick="showApiKeyHelp()" style="color: #0056cc; text-decoration: underline; margin-left: 8px;">How to get API keys?</a>
-        <div id="api-key-help" style="display: none; margin-top: 10px; padding: 10px; background: white; border-radius: 6px; border: 1px solid #ddd;">
-            <p><strong>Gemini API:</strong> Visit <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a> to get a free API key.</p>
-            <p><strong>DeepSeek API:</strong> Visit <a href="https://platform.deepseek.com/api_keys" target="_blank">DeepSeek Platform</a> to get an API key.</p>
-            <p>After obtaining keys, open this page's source code and replace <code>YOUR_GEMINI_API_KEY_HERE</code> and <code>YOUR_DEEPSEEK_API_KEY_HERE</code> with your actual keys.</p>
-            <button onclick="hideApiKeyHelp()" style="background: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 4px; margin-top: 8px;">Close</button>
+    <div id="api-key-warning" style="background: #e7f3ff; border: 1px solid #b8d4ff; border-radius: 8px; padding: 16px; margin-bottom: 20px; color: #0066cc;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <strong style="font-size: 16px;">🔑 API Keys Settings</strong>
+            <a href="javascript:void(0)" onclick="showApiKeyHelp()" style="color: #0056cc; text-decoration: underline;">How to get API keys?</a>
+        </div>
+        
+        <div id="api-key-status" style="margin-bottom: 16px; padding: 10px; background: #f0f7ff; border-radius: 6px; border: 1px solid #c2e0ff; display: none;">
+            <span id="api-key-status-text"></span>
+        </div>
+        
+        <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 250px;">
+                <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #555;">Gemini API Key</label>
+                <input type="password" id="gemini-api-key-input" style="width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px;" placeholder="AIzaSy...">
+                <div style="font-size: 12px; color: #666; margin-top: 4px;">Get from <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a></div>
+            </div>
+            <div style="flex: 1; min-width: 250px;">
+                <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #555;">DeepSeek API Key</label>
+                <input type="password" id="deepseek-api-key-input" style="width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px;" placeholder="sk-...">
+                <div style="font-size: 12px; color: #666; margin-top: 4px;">Get from <a href="https://platform.deepseek.com/api_keys" target="_blank">DeepSeek Platform</a></div>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button onclick="saveApiKeys()" style="background: #007aff; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 15px; cursor: pointer;">💾 Save API Keys</button>
+            <button onclick="clearApiKeys()" class="btn-secondary" style="background: #6c757d; color: white; border: none; padding: 10px 16px; border-radius: 8px; font-size: 14px; cursor: pointer;">🗑️ Clear</button>
+            <div style="font-size: 13px; color: #666; margin-left: auto;">
+                Keys are saved in your browser only
+            </div>
+        </div>
+        
+        <div id="api-key-help" style="display: none; margin-top: 16px; padding: 12px; background: white; border-radius: 6px; border: 1px solid #ddd;">
+            <p><strong>Gemini API:</strong> Visit <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a> to get a free API key (free tier available).</p>
+            <p><strong>DeepSeek API:</strong> Visit <a href="https://platform.deepseek.com/api_keys" target="_blank">DeepSeek Platform</a> to get an API key (low cost, pay-as-you-go).</p>
+            <p><strong>Security:</strong> Your API keys are stored only in your browser's local storage. They are never sent to any server except the respective AI providers.</p>
+            <button onclick="hideApiKeyHelp()" style="background: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 4px; margin-top: 8px;">Close Help</button>
         </div>
     </div>
     
@@ -708,11 +736,83 @@ Lead time: 15 days"></textarea>
         // 🔒 IMPORTANT: Replace with your own API keys before using
         // Get Gemini API key: https://makersuite.google.com/app/apikey
         // Get DeepSeek API key: https://platform.deepseek.com/api_keys
-        const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE"; // Replace with your Gemini API Key
-        const DEEPSEEK_API_KEY = "YOUR_DEEPSEEK_API_KEY_HERE"; // Replace with your DeepSeek API Key
+        // API Keys - loaded from browser storage
+        let GEMINI_API_KEY = localStorage.getItem('gemini_api_key') || "";
+        let DEEPSEEK_API_KEY = localStorage.getItem('deepseek_api_key') || "";
         
         // 用于存储上一次抓取的内容，防止重复累加
         let lastGrabbedText = "";
+        
+        // API Key management functions
+        function saveApiKeys() {
+            const geminiKey = document.getElementById('gemini-api-key-input').value.trim();
+            const deepseekKey = document.getElementById('deepseek-api-key-input').value.trim();
+            
+            // Save to localStorage
+            if (geminiKey) {
+                localStorage.setItem('gemini_api_key', geminiKey);
+                GEMINI_API_KEY = geminiKey;
+            }
+            if (deepseekKey) {
+                localStorage.setItem('deepseek_api_key', deepseekKey);
+                DEEPSEEK_API_KEY = deepseekKey;
+            }
+            
+            // Update status display
+            updateApiKeyStatus();
+            
+            // Show confirmation
+            showToast('API keys saved successfully!');
+        }
+        
+        function clearApiKeys() {
+            if (confirm('Are you sure you want to clear all API keys? This will disable AI parsing until you set new keys.')) {
+                localStorage.removeItem('gemini_api_key');
+                localStorage.removeItem('deepseek_api_key');
+                GEMINI_API_KEY = "";
+                DEEPSEEK_API_KEY = "";
+                document.getElementById('gemini-api-key-input').value = "";
+                document.getElementById('deepseek-api-key-input').value = "";
+                updateApiKeyStatus();
+                showToast('API keys cleared.');
+            }
+        }
+        
+        function updateApiKeyStatus() {
+            const statusEl = document.getElementById('api-key-status');
+            const statusText = document.getElementById('api-key-status-text');
+            const hasGemini = localStorage.getItem('gemini_api_key');
+            const hasDeepSeek = localStorage.getItem('deepseek_api_key');
+            
+            if (hasGemini || hasDeepSeek) {
+                let statusMsg = '';
+                if (hasGemini && hasDeepSeek) {
+                    statusMsg = '✅ Both API keys are set and ready.';
+                } else if (hasGemini) {
+                    statusMsg = '⚠️ Only Gemini API key is set. DeepSeek key is missing.';
+                } else if (hasDeepSeek) {
+                    statusMsg = '⚠️ Only DeepSeek API key is set. Gemini key is missing.';
+                }
+                statusText.textContent = statusMsg;
+                statusEl.style.display = 'block';
+            } else {
+                statusEl.style.display = 'none';
+            }
+        }
+        
+        function loadApiKeysToUI() {
+            const geminiKey = localStorage.getItem('gemini_api_key');
+            const deepseekKey = localStorage.getItem('deepseek_api_key');
+            
+            if (geminiKey) {
+                document.getElementById('gemini-api-key-input').value = geminiKey;
+            }
+            if (deepseekKey) {
+                document.getElementById('deepseek-api-key-input').value = deepseekKey;
+            }
+            
+            updateApiKeyStatus();
+        }
         
         // 显示临时提示
         function showToast(msg) {
@@ -736,6 +836,9 @@ Lead time: 15 days"></textarea>
             
             // Setup paste auto-detect
             setupPasteDetection();
+            
+            // Load API keys from storage
+            loadApiKeysToUI();
             
             // 添加窗口聚焦自动抓取剪贴板功能
             window.addEventListener('focus', async () => {
@@ -1304,8 +1407,8 @@ Lead time: 15 days"></textarea>
         }
         
         async function callGeminiAPI(text, mode = 'single') {
-            if (!GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_GEMINI_API_KEY") {
-                throw new Error("Please fill in your Gemini API Key. Get it from: https://makersuite.google.com/app/apikey");
+            if (!GEMINI_API_KEY) {
+                throw new Error("Gemini API Key is not set. Please enter your API key in the \"API Keys Settings\" section at the top of the page.");
             }
             
             let prompt;
@@ -1396,6 +1499,9 @@ Integrated text from multiple sources: ${text.substring(0, 2000)}`;
         }
         
         async function callDeepSeekAPI(text, mode = 'single') {
+            if (!DEEPSEEK_API_KEY) {
+                throw new Error("DeepSeek API Key is not set. Please enter your API key in the \"API Keys Settings\" section at the top of the page.");
+            }
             let prompt;
             if (mode === 'accumulate') {
                 prompt = `You are a professional contract data integration expert. The user provides multiple scattered chat records (possibly from multiple screenshot OCRs). Please ignore irrelevant chatter, extract and integrate the most complete contract elements:
