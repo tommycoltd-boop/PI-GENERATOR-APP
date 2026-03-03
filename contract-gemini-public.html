@@ -1419,11 +1419,11 @@ Lead time: 15 days"></textarea>
                 document.getElementById('buyer_contact').value = result.buyer_contact || "";
                 
                 updatePreview();
-                alert(`✅ ${provider === 'gemini' ? 'Gemini' : 'DeepSeek'} parsing completed! (Mode: ${mode}) - Found ${products.length} product(s)`);
+                showToast(`✅ ${provider === 'gemini' ? 'Gemini' : 'DeepSeek'} parsing completed! (Mode: ${mode}) - Found ${products.length} product(s)`);
                 
             } catch (e) {
                 console.error(e);
-                alert(`Parsing failed: ${e.message}\n\nPlease check: 1. API Key is correct; 2. Sufficient balance/quota; 3. Network connectivity.`);
+                showToast(`❌ Parsing failed: ${e.message}`);
             } finally {
                 btn.disabled = false;
                 status.style.display = "none";
