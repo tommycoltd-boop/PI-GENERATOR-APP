@@ -882,7 +882,10 @@ Lead time: 15 days"></textarea>
                         showToast(`📋 已添加: ${currentClipboardText.substring(0, 30)}...`);
                         
                         // 如果内容较长，自动触发AI解析（仅在single模式下）
-                        // 已禁用自动解析，请手动点击"Parse with AI"按钮
+                        const mode = document.getElementById('parseMode').value;
+                        if (mode === 'single' && currentClipboardText.length > 10) {
+                            setTimeout(() => runAI(), 500);
+                        }
                     } else if (alreadyExists) {
                         // 如果已经存在，显示提示但不添加
                         showToast(`⏭️ 内容已存在，跳过添加`);
@@ -969,6 +972,12 @@ Lead time: 15 days"></textarea>
             
             // 自动滚动到底部
             inputArea.scrollTop = inputArea.scrollHeight;
+            
+            // 自动触发AI解析（仅在single模式下）
+            const mode = document.getElementById('parseMode').value;
+            if (mode === 'single' && text.length > 10) {
+                setTimeout(() => runAI(), 500);
+            }
             
             return true;
         }
@@ -1096,10 +1105,9 @@ Lead time: 15 days"></textarea>
                     const mode = document.getElementById('parseMode').value;
                     
                     // Only auto-parse in single mode (not accumulate mode)
-                    // Removed auto-parse to let user click manually
-                    // if (mode === 'single' && text && text.length > 10) {
-                    //     setTimeout(() => runAI(), 300);
-                    // }
+                    if (mode === 'single' && text && text.length > 10) {
+                        setTimeout(() => runAI(), 300);
+                    }
                 }, 100);
                 
                 // Hide notice after 3 seconds
