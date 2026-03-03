@@ -528,8 +528,11 @@
                 <div class="ios-paste-notice" style="background: #f0f7ff; border-left: 4px solid #007aff; padding: 12px 16px; margin: 12px 0; border-radius: 8px; font-size: 14px; color: #333;">
                     📱 <strong>iOS Safari Users:</strong> Click "📋 Paste" button → System popup appears → Tap "Paste" to complete.<br>
                     <small style="color: #666;">
-                        <strong>Tip:</strong> On the system popup, you may see "Allow Paste" → choose "Allow" to remember your choice.<br>
-                        This two‑step process is required by iOS for security. The site cannot read clipboard automatically.
+                        <strong>Note:</strong> The system popup is controlled by iOS, not this website.<br>
+                        • If you see <strong>"Allow Paste"</strong>, tap it to remember your choice for future use.<br>
+                        • Some iOS versions may not show "Allow Paste" option immediately.<br>
+                        • After several uses, iOS may offer to remember your preference.<br>
+                        This two‑step process is required by iOS for security.
                     </small>
                 </div>
                 <div class="api-selector">
@@ -904,9 +907,9 @@ Lead time: 15 days"></textarea>
                     console.warn("Clipboard API失败:", err);
                     // 显示用户友好提示
                     if (/iPhone|iPad|iPod/.test(navigator.userAgent) && !navigator.userAgent.match(/CriOS/)) {
-                        showToast("📱 iOS: Tap 'Paste' on system popup. If you see 'Allow Paste', choose 'Allow' to remember.");
+                        showToast("📱 Tap 'Paste' on iOS popup. If 'Allow Paste' appears, choose it to remember.");
                     } else {
-                        showToast("Please allow clipboard access permission.");
+                        showToast("Tap 'Paste' on the system popup to allow clipboard access.");
                     }
                     // 继续尝试方法2
                 }
